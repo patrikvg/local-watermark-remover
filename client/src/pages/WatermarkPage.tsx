@@ -6,7 +6,7 @@ type Props = {
   initialUploadId?: string | null;
 };
 
-export default function WatermarkPage(_props: Props) {
+export default function WatermarkPage({ initialUploadId }: Props) {
   const [health, setHealth] = useState<Health | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +40,9 @@ export default function WatermarkPage(_props: Props) {
         </div>
       )}
       {health?.ok && <div className="banner ok">Local engine ready.</div>}
-      <VideoWorkspace ready={ready} />
+      {health?.ok && (
+        <VideoWorkspace ready={ready} initialUploadId={initialUploadId} />
+      )}
     </>
   );
 }

@@ -3,7 +3,9 @@ import {
   cancelJob,
   downloadUrl,
   getJob,
+  getUpload,
   startProcess,
+  uploadMediaUrl,
   uploadVideo,
   type Box,
   type JobStatus,
@@ -47,9 +49,10 @@ function scaleBoxToVideo(
 
 type Props = {
   ready: boolean;
+  initialUploadId?: string | null;
 };
 
-export default function VideoWorkspace({ ready }: Props) {
+export default function VideoWorkspace({ ready, initialUploadId }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadResult | null>(null);
@@ -71,9 +74,45 @@ export default function VideoWorkspace({ ready }: Props) {
 
   useEffect(() => {
     return () => {
-      if (fileUrl) URL.revokeObjectURL(fileUrl);
+      if (fileUrl?.startsWith("blob:")) URL.revokeObjectURL(fileUrl);
     };
   }, [fileUrl]);
+
+  useEffect(() => {
+    if (!initialUploadId || !ready) return;
+
+    let cancelled = false;
+    setMessage(null);
+    setJob(null);
+    setJobId(null);
+    setBox(null);
+    setUpload(null);
+    setFileUrl(null);
+    setCurrentTime(0);
+    setDuration(0);
+    setBusy(true);
+
+    void getUpload(initialUploadId)
+      .then((result) => {
+        if (cancelled) return;
+        setFileUrl(uploadMediaUrl(result.id));
+        setUpload(result);
+        setMessage(
+          `Loaded ${result.width}×${result.height}. Draw a box over the watermark.`
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setMessage(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialUploadId, ready]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -145,7 +184,7 @@ export default function VideoWorkspace({ ready }: Props) {
     setUpload(null);
     setCurrentTime(0);
     setDuration(0);
-    if (fileUrl) URL.revokeObjectURL(fileUrl);
+    if (fileUrl?.startsWith("blob:")) URL.revokeObjectURL(fileUrl);
     setFileUrl(URL.createObjectURL(file));
     setBusy(true);
     try {
