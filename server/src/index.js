@@ -255,10 +255,14 @@ app.post("/api/download/start", async (request, reply) => {
     /* title optional */
   }
 
+  const tiktokFormat = Boolean(request.body?.tiktokFormat);
+
   const job = createDownloadJob({
     url: parsed.url,
     downloadsDir,
     title,
+    tiktokFormat,
+    preferredEncoder: cachedEncoder,
     registerUpload: registerDownloadedUpload,
   });
   return { jobId: job.id };
