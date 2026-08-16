@@ -744,6 +744,18 @@ button:disabled {
   gap: 0.15rem;
 }
 
+.title-stroke {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1 1 12rem;
+}
+
+.title-stroke input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
