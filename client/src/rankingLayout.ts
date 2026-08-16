@@ -5,6 +5,7 @@ export const RANK_FONT = 120;
 export const RANK_LINE_HEIGHT = 140;
 export const TITLE_FONT = 64;
 export const TITLE_LINE_SPACING = 8;
+export const TITLE_MIN_W = 48;
 export const CAPTION_LINE_SPACING = 8;
 export const CAPTION_X_RATIO = 0.85;
 export const CHAR_WIDTH_RATIO = 0.52;
@@ -105,15 +106,15 @@ export function estimateTitleBoxSize(
   const s = Math.max(0.05, scale);
   const canvasWidth = boxWidthPreview / s;
   const display = wrapOverlayText(title || "Title", canvasWidth, TITLE_FONT, wrap);
-  const heightCanvas = overlayTextHeight(display, TITLE_FONT, TITLE_LINE_SPACING);
-  const widthCanvas = wrap
-    ? canvasWidth
-    : Math.max(
-        1,
-        String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO
-      );
+  const lines = Math.max(1, String(display).split("\n").length);
+  const heightCanvas = lines * (TITLE_FONT + TITLE_LINE_SPACING);
+  const estimatedPreviewW =
+    String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO * s;
+  const width = wrap
+    ? boxWidthPreview
+    : Math.max(TITLE_MIN_W, estimatedPreviewW);
   return {
-    width: widthCanvas * s,
+    width,
     height: heightCanvas * s,
   };
 }

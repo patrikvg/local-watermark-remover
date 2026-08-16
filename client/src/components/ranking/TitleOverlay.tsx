@@ -3,6 +3,7 @@ import {
   CHAR_WIDTH_RATIO,
   TITLE_FONT,
   TITLE_LINE_SPACING,
+  TITLE_MIN_W,
   TITLE_SNAP_THRESHOLD,
   centerTitleX,
   wrapOverlayText,
@@ -19,8 +20,6 @@ type Props = {
   scale: number;
   stageWidth: number;
 };
-
-const MIN_W = 48;
 
 export default function TitleOverlay({
   title,
@@ -50,7 +49,7 @@ export default function TitleOverlay({
   const effectiveW = wrap
     ? boxWidth
     : Math.max(
-        MIN_W,
+        TITLE_MIN_W,
         String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO * s
       );
 
@@ -89,7 +88,7 @@ export default function TitleOverlay({
         onPointerMove={(e) => {
           if (resizing.current) {
             const dx = e.clientX - origin.current.pointerX;
-            onBoxWidthChange(Math.max(MIN_W, origin.current.startW + dx));
+            onBoxWidthChange(Math.max(TITLE_MIN_W, origin.current.startW + dx));
             return;
           }
           if (!dragging.current) return;
