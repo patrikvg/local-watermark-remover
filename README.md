@@ -42,6 +42,7 @@ The **Watermark** tab remains a separate flow for box-based watermark removal.
 1. Open the **Download** tab.
 2. Paste a YouTube or TikTok URL → **Prüfen** to see the best available resolution.
 3. **Herunterladen** (optional: **Danach Watermark entfernen**).
+   - Optional: enable **TikTok-Format (9:16 / 1080×1920)** to center-crop after download (high-quality encode). Can combine with **Danach Watermark entfernen**.
 4. Save the file, or continue in Watermark and draw the box as usual.
 
 ## Tests
