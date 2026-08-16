@@ -5,6 +5,13 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import { fitDelogoRegion } from "./box.js";
+import { parseDownloadUrl } from "./downloadUrl.js";
+import {
+  cancelDownloadJob,
+  createDownloadJob,
+  getDownloadJob,
+  listPublicDownloadJob,
+} from "./downloadJobs.js";
 import {
   cancelJob,
   checkBinaries,
@@ -22,12 +29,14 @@ import {
   listPublicRankingJob,
 } from "./rankingJobs.js";
 import {
+  downloadsDir,
   ensureDirs,
   outputsDir,
   rankingBgmDir,
   rankingClipsDir,
   uploadsDir,
 } from "./paths.js";
+import { checkYtdlp, probeUrl } from "./ytdlp.js";
 
 ensureDirs();
 
@@ -46,13 +55,37 @@ const rankingClips = new Map();
 const rankingBgm = new Map();
 
 let cachedEncoder = "libx264";
-let binaries = { ffmpeg: false, ffprobe: false };
+let binaries = { ffmpeg: false, ffprobe: false, ytdlp: false };
 
 async function refreshEnv() {
-  binaries = await checkBinaries();
+  const ff = await checkBinaries();
+  const ytdlp = await checkYtdlp();
+  binaries = { ...ff, ytdlp };
   if (binaries.ffmpeg) {
     cachedEncoder = await pickEncoder();
   }
+}
+
+async function registerDownloadedUpload({ path: filePath, filename, title }) {
+  const id = randomUUID();
+  let meta;
+  try {
+    meta = await probeVideo(filePath);
+  } catch (err) {
+    throw new Error(
+      err instanceof Error ? err.message : "Could not read downloaded video"
+    );
+  }
+  if (!meta.width || !meta.height) {
+    throw new Error("Could not detect video dimensions");
+  }
+  uploads.set(id, {
+    id,
+    path: filePath,
+    filename: title ? `${title}.mp4` : filename,
+    ...meta,
+  });
+  return id;
 }
 
 await refreshEnv();
@@ -61,6 +94,7 @@ app.get("/api/health", async () => ({
   ok: binaries.ffmpeg && binaries.ffprobe,
   ffmpeg: binaries.ffmpeg,
   ffprobe: binaries.ffprobe,
+  ytdlp: Boolean(binaries.ytdlp),
   encoder: cachedEncoder,
 }));
 
@@ -179,6 +213,104 @@ app.get("/api/jobs/:id/download", async (request, reply) => {
     `attachment; filename="cleaned-${job.outputName}"`
   );
   return reply.send(fs.createReadStream(job.outputPath));
+});
+
+app.post("/api/download/probe", async (request, reply) => {
+  if (!binaries.ytdlp) {
+    return reply.code(503).send({
+      error: "yt-dlp not found on PATH. Install yt-dlp and restart.",
+    });
+  }
+  const parsed = parseDownloadUrl(request.body?.url);
+  if (!parsed.ok) return reply.code(400).send({ error: parsed.error });
+  try {
+    return await probeUrl(parsed.url, parsed.platform);
+  } catch (err) {
+    return reply.code(400).send({
+      error: err instanceof Error ? err.message : "Probe failed",
+    });
+  }
+});
+
+app.post("/api/download/start", async (request, reply) => {
+  if (!binaries.ytdlp) {
+    return reply.code(503).send({
+      error: "yt-dlp not found on PATH. Install yt-dlp and restart.",
+    });
+  }
+  if (!binaries.ffmpeg) {
+    return reply.code(503).send({
+      error: "FFmpeg not found on PATH (required to merge best video+audio).",
+    });
+  }
+  const parsed = parseDownloadUrl(request.body?.url);
+  if (!parsed.ok) return reply.code(400).send({ error: parsed.error });
+
+  let title = null;
+  try {
+    const info = await probeUrl(parsed.url, parsed.platform);
+    title = info.title;
+  } catch {
+    /* title optional */
+  }
+
+  const job = createDownloadJob({
+    url: parsed.url,
+    downloadsDir,
+    title,
+    registerUpload: registerDownloadedUpload,
+  });
+  return { jobId: job.id };
+});
+
+app.get("/api/download/:id", async (request, reply) => {
+  const job = getDownloadJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicDownloadJob(job);
+});
+
+app.post("/api/download/:id/cancel", async (request, reply) => {
+  const job = cancelDownloadJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicDownloadJob(job);
+});
+
+app.get("/api/download/:id/file", async (request, reply) => {
+  const job = getDownloadJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  if (job.status !== "done") {
+    return reply.code(409).send({ error: "Job not finished" });
+  }
+  if (!job.outputPath || !fs.existsSync(job.outputPath)) {
+    return reply.code(404).send({ error: "Output missing" });
+  }
+  const safe = String(job.title || job.outputName || "video")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .slice(0, 80);
+  const name = safe.toLowerCase().endsWith(".mp4") ? safe : `${safe}.mp4`;
+  reply.header("Content-Disposition", `attachment; filename="${name}"`);
+  return reply.send(fs.createReadStream(job.outputPath));
+});
+
+app.get("/api/uploads/:id", async (request, reply) => {
+  const upload = uploads.get(request.params.id);
+  if (!upload) return reply.code(404).send({ error: "Upload not found" });
+  return {
+    id: upload.id,
+    filename: upload.filename,
+    width: upload.width,
+    height: upload.height,
+    duration: upload.duration,
+  };
+});
+
+app.get("/api/uploads/:id/media", async (request, reply) => {
+  const upload = uploads.get(request.params.id);
+  if (!upload) return reply.code(404).send({ error: "Upload not found" });
+  if (!fs.existsSync(upload.path)) {
+    return reply.code(404).send({ error: "File missing" });
+  }
+  return reply.send(fs.createReadStream(upload.path));
 });
 
 app.post("/api/ranking/clips", async (request, reply) => {
