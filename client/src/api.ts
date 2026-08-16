@@ -4,7 +4,27 @@ export type Health = {
   ok: boolean;
   ffmpeg: boolean;
   ffprobe: boolean;
+  ytdlp?: boolean;
   encoder: string;
+};
+
+export type DownloadProbe = {
+  title: string;
+  duration: number;
+  width: number;
+  height: number;
+  resolutionLabel: string;
+  platform: "youtube" | "tiktok";
+};
+
+export type DownloadJobStatus = {
+  id: string;
+  status: "queued" | "running" | "done" | "error" | "cancelled";
+  progress: number;
+  error: string | null;
+  outputName: string | null;
+  uploadId: string | null;
+  title: string | null;
 };
 
 export type UploadResult = {
@@ -75,6 +95,54 @@ export async function cancelJob(jobId: string): Promise<JobStatus> {
 
 export function downloadUrl(jobId: string): string {
   return `/api/jobs/${jobId}/download`;
+}
+
+export async function probeDownload(url: string): Promise<DownloadProbe> {
+  const res = await fetch("/api/download/probe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function startDownload(url: string): Promise<{ jobId: string }> {
+  const res = await fetch("/api/download/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function getDownloadJob(jobId: string): Promise<DownloadJobStatus> {
+  const res = await fetch(`/api/download/${jobId}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function cancelDownloadJob(
+  jobId: string
+): Promise<DownloadJobStatus> {
+  const res = await fetch(`/api/download/${jobId}/cancel`, { method: "POST" });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export function downloadFileUrl(jobId: string): string {
+  return `/api/download/${jobId}/file`;
+}
+
+export async function getUpload(id: string): Promise<UploadResult> {
+  const res = await fetch(`/api/uploads/${id}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export function uploadMediaUrl(id: string): string {
+  return `/api/uploads/${id}/media`;
 }
 
 export type RankingClip = {
