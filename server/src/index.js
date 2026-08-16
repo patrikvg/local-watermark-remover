@@ -12,6 +12,7 @@ import {
   getJob,
   listPublicJob,
   pickEncoder,
+  probeAudio,
   probeVideo,
 } from "./jobs.js";
 import {
@@ -212,12 +213,17 @@ app.post("/api/ranking/clips", async (request, reply) => {
     await fs.promises.unlink(dest).catch(() => {});
     return reply.code(400).send({ error: "Could not detect video dimensions" });
   }
+  if (!(meta.duration > 0)) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({ error: "Clip duration must be greater than 0" });
+  }
 
   rankingClips.set(id, {
     id,
     path: dest,
     filename: file.filename,
     ...meta,
+    hasAudio: Boolean(meta.hasAudio),
   });
 
   return {
@@ -226,6 +232,7 @@ app.post("/api/ranking/clips", async (request, reply) => {
     width: meta.width,
     height: meta.height,
     duration: meta.duration,
+    hasAudio: Boolean(meta.hasAudio),
   };
 });
 
@@ -246,6 +253,21 @@ app.post("/api/ranking/bgm", async (request, reply) => {
   const storedName = `${id}${ext}`;
   const dest = path.join(rankingBgmDir, storedName);
   await fs.promises.writeFile(dest, await file.toBuffer());
+
+  try {
+    const audioMeta = await probeAudio(dest);
+    if (!audioMeta.hasAudio) {
+      await fs.promises.unlink(dest).catch(() => {});
+      return reply
+        .code(400)
+        .send({ error: "File must contain at least one audio stream" });
+    }
+  } catch (err) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({
+      error: err instanceof Error ? err.message : "Could not read audio",
+    });
+  }
 
   rankingBgm.set(id, {
     id,
@@ -309,6 +331,7 @@ app.post("/api/ranking/export", async (request, reply) => {
   const job = createRankingJob({
     clipPaths: clips.map((c) => c.path),
     durations: clips.map((c) => c.duration),
+    hasAudio: clips.map((c) => Boolean(c.hasAudio)),
     title,
     titlePos,
     muteClips: Boolean(muteClips),

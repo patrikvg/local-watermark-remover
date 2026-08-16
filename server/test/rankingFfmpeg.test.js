@@ -44,4 +44,41 @@ describe("buildRankingArgs", () => {
       })
     ).toThrow(/background music/i);
   });
+
+  it("builds with mixed hasAudio flags", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1.5, 2, 1, 1, 1],
+      hasAudio: [true, false, true, false, true],
+      title: "Mixed",
+      titlePos: { x: 10, y: 10 },
+      muteClips: false,
+      bgmPath: null,
+      bgmVolume: 0.3,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("concat=n=5");
+    expect(fc).toContain("anullsrc=");
+    expect(fc).toContain("apad");
+    expect(fc).toMatch(/\[0:a\]apad/);
+    expect(fc).toMatch(/anullsrc=channel_layout=stereo:sample_rate=44100,atrim=0:2/);
+  });
+
+  it("adds amix normalize=0 when BGM is present", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1, 1, 1, 1, 1],
+      title: "With BGM",
+      titlePos: { x: 10, y: 10 },
+      muteClips: true,
+      bgmPath: "bgm.mp3",
+      bgmVolume: 0.4,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("amix=inputs=2:duration=first:dropout_transition=0:normalize=0");
+  });
 });

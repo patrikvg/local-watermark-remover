@@ -68,10 +68,8 @@ export function probeVideo(inputPath) {
     const args = [
       "-v",
       "error",
-      "-select_streams",
-      "v:0",
       "-show_entries",
-      "stream=width,height:format=duration",
+      "stream=codec_type,width,height:format=duration",
       "-of",
       "json",
       inputPath,
@@ -93,13 +91,58 @@ export function probeVideo(inputPath) {
       }
       try {
         const json = JSON.parse(out);
-        const stream = json.streams?.[0] ?? {};
-        const duration = Number(json.format?.duration ?? stream.duration ?? 0);
+        const streams = json.streams ?? [];
+        const video = streams.find((s) => s.codec_type === "video") ?? {};
+        const hasAudio = streams.some((s) => s.codec_type === "audio");
+        const duration = Number(json.format?.duration ?? video.duration ?? 0);
         resolve({
-          width: Number(stream.width) || 0,
-          height: Number(stream.height) || 0,
+          width: Number(video.width) || 0,
+          height: Number(video.height) || 0,
           duration: Number.isFinite(duration) ? duration : 0,
+          hasAudio,
         });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
+/** Returns true if the file has at least one audio stream. */
+export function probeAudio(inputPath) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      "-v",
+      "error",
+      "-select_streams",
+      "a",
+      "-show_entries",
+      "stream=codec_type",
+      "-of",
+      "json",
+      inputPath,
+    ];
+    const proc = spawn("ffprobe", args, { windowsHide: true });
+    let out = "";
+    let err = "";
+    proc.stdout.on("data", (d) => {
+      out += d.toString();
+    });
+    proc.stderr.on("data", (d) => {
+      err += d.toString();
+    });
+    proc.on("error", (e) => reject(e));
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(err || "ffprobe failed"));
+        return;
+      }
+      try {
+        const json = JSON.parse(out);
+        const hasAudio = (json.streams ?? []).some(
+          (s) => s.codec_type === "audio"
+        );
+        resolve({ hasAudio });
       } catch (e) {
         reject(e);
       }

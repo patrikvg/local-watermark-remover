@@ -36,6 +36,7 @@ function runRankingFfmpeg(job, encoder) {
     const args = buildRankingArgs({
       clips: job.clipPaths,
       durations: job.durations,
+      hasAudio: job.hasAudio,
       title: job.title,
       titlePos: job.titlePos,
       muteClips: job.muteClips,
@@ -87,6 +88,7 @@ function runRankingFfmpeg(job, encoder) {
 export function createRankingJob({
   clipPaths,
   durations,
+  hasAudio,
   title,
   titlePos,
   muteClips,
@@ -108,6 +110,7 @@ export function createRankingJob({
     error: null,
     clipPaths,
     durations,
+    hasAudio: Array.isArray(hasAudio) ? hasAudio.map(Boolean) : undefined,
     title,
     titlePos,
     muteClips: Boolean(muteClips),

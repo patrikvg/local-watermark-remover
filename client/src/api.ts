@@ -83,6 +83,7 @@ export type RankingClip = {
   duration: number;
   width: number;
   height: number;
+  hasAudio?: boolean;
 };
 
 export type RankingBgm = {
@@ -113,6 +114,7 @@ export async function startRankingExport(body: {
   muteClips: boolean;
   bgmId?: string | null;
   bgmVolume: number;
+  hasAudio?: boolean[];
 }): Promise<{ jobId: string }> {
   const res = await fetch("/api/ranking/export", {
     method: "POST",

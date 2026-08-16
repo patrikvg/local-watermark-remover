@@ -28,15 +28,18 @@ function videoChain(i) {
   );
 }
 
-function audioChain(i, muteClips, duration) {
-  if (muteClips) {
+function audioChain(i, muteClips, duration, clipHasAudio) {
+  if (muteClips || !clipHasAudio) {
     return (
       `anullsrc=channel_layout=stereo:sample_rate=44100,` +
       `atrim=0:${duration},asetpts=PTS-STARTPTS[a${i}]`
     );
   }
-  return `[${i}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,` +
-    `asetpts=PTS-STARTPTS[a${i}]`;
+  return (
+    `[${i}:a]apad,atrim=0:${duration},` +
+    `aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,` +
+    `asetpts=PTS-STARTPTS[a${i}]`
+  );
 }
 
 function rankDrawtext({ rank, start, x, y, fontSize }) {
@@ -71,6 +74,7 @@ function titleDrawtext({ title, x, y }) {
  *   bgmVolume: number,
  *   encoder: string,
  *   output: string,
+ *   hasAudio?: boolean[],
  * }} opts
  */
 export function buildRankingArgs({
@@ -83,6 +87,7 @@ export function buildRankingArgs({
   bgmVolume,
   encoder,
   output,
+  hasAudio,
 }) {
   if (!Array.isArray(clips) || clips.length !== 5) {
     throw new Error("Exactly 5 clips required");
@@ -90,6 +95,12 @@ export function buildRankingArgs({
   if (muteClips && !bgmPath) {
     throw new Error("Background music is required when clips are muted");
   }
+
+  // Default: treat all clips as having audio (backward compatible).
+  const audioFlags =
+    Array.isArray(hasAudio) && hasAudio.length === 5
+      ? hasAudio.map(Boolean)
+      : [true, true, true, true, true];
 
   const segments = buildSegments(durations);
   const positions = stackPositions({});
@@ -99,7 +110,7 @@ export function buildRankingArgs({
 
   for (let i = 0; i < 5; i++) {
     filters.push(videoChain(i));
-    filters.push(audioChain(i, muteClips, durations[i]));
+    filters.push(audioChain(i, muteClips, durations[i], audioFlags[i]));
   }
 
   const concatInputs = [0, 1, 2, 3, 4].map((i) => `[v${i}][a${i}]`).join("");
@@ -143,7 +154,9 @@ export function buildRankingArgs({
     filters.push(
       `[${bgmIndex}:a]volume=${bgmVolume},atrim=0:${totalDuration},asetpts=PTS-STARTPTS[bgm]`
     );
-    filters.push(`[aout][bgm]amix=inputs=2:duration=first:dropout_transition=0[amixed]`);
+    filters.push(
+      `[aout][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amixed]`
+    );
     audioMap = "[amixed]";
   }
 

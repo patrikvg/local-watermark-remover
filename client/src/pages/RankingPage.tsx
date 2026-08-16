@@ -163,6 +163,7 @@ export default function RankingPage() {
         muteClips,
         bgmId: bgm?.id ?? null,
         bgmVolume,
+        hasAudio: slots.map((s) => Boolean(s!.clip.hasAudio)),
       });
       setJobId(id);
       setJob({
