@@ -11,6 +11,10 @@ describe("parseDownloadUrl", () => {
       ok: true,
       platform: "youtube",
     });
+    expect(parseDownloadUrl("https://m.youtu.be/dQw4w9WgXcQ")).toMatchObject({
+      ok: true,
+      platform: "youtube",
+    });
   });
 
   it("accepts tiktok URLs", () => {

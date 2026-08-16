@@ -25,7 +25,11 @@ export function parseDownloadUrl(raw) {
     "music.youtube.com",
     "youtu.be",
   ]);
-  if (youtubeHosts.has(host) || host.endsWith(".youtube.com")) {
+  if (
+    youtubeHosts.has(host) ||
+    host.endsWith(".youtube.com") ||
+    host.endsWith(".youtu.be")
+  ) {
     return { ok: true, url: parsed.toString(), platform: "youtube" };
   }
 
