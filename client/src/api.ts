@@ -25,6 +25,8 @@ export type DownloadJobStatus = {
   outputName: string | null;
   uploadId: string | null;
   title: string | null;
+  tiktokFormat?: boolean;
+  phase?: "download" | "convert" | null;
 };
 
 export type UploadResult = {
@@ -107,11 +109,17 @@ export async function probeDownload(url: string): Promise<DownloadProbe> {
   return res.json();
 }
 
-export async function startDownload(url: string): Promise<{ jobId: string }> {
+export async function startDownload(
+  url: string,
+  opts?: { tiktokFormat?: boolean }
+): Promise<{ jobId: string }> {
   const res = await fetch("/api/download/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({
+      url,
+      tiktokFormat: Boolean(opts?.tiktokFormat),
+    }),
   });
   if (!res.ok) throw new Error(await readError(res));
   return res.json();

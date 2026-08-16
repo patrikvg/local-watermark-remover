@@ -21,6 +21,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   const [probe, setProbe] = useState<DownloadProbe | null>(null);
   const [probedUrl, setProbedUrl] = useState<string | null>(null);
   const [removeWatermark, setRemoveWatermark] = useState(false);
+  const [tiktokFormat, setTiktokFormat] = useState(false);
   const [job, setJob] = useState<DownloadJobStatus | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -28,6 +29,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   const [message, setMessage] = useState<string | null>(null);
 
   const processing = job?.status === "queued" || job?.status === "running";
+  const busy = checking || starting || processing;
   const hasCurrentProbe = Boolean(
     probe && probedUrl && url.trim() === probedUrl
   );
@@ -94,7 +96,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
     setJobId(null);
     setMessage("Download wird gestartet…");
     try {
-      const { jobId: id } = await startDownload(probedUrl);
+      const { jobId: id } = await startDownload(probedUrl, { tiktokFormat });
       setJobId(id);
       setJob({
         id,
@@ -104,6 +106,8 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
         outputName: null,
         uploadId: null,
         title: probe.title,
+        tiktokFormat,
+        phase: null,
       });
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
@@ -192,10 +196,20 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
           <input
             type="checkbox"
             checked={removeWatermark}
-            disabled={processing}
+            disabled={busy}
             onChange={(event) => setRemoveWatermark(event.target.checked)}
           />
           Danach Watermark entfernen
+        </label>
+
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={tiktokFormat}
+            disabled={busy}
+            onChange={(event) => setTiktokFormat(event.target.checked)}
+          />
+          TikTok-Format (9:16 / 1080×1920)
         </label>
 
         <div className="actions">
@@ -244,6 +258,13 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
             <div className="bar" style={{ width: `${percent}%` }} />
             <span>{percent}%</span>
           </div>
+        )}
+
+        {processing && job?.phase === "convert" && (
+          <p className="message">Konvertiere zu TikTok-Format…</p>
+        )}
+        {processing && job?.phase === "download" && (
+          <p className="message">Lade herunter…</p>
         )}
 
         {message && health && <p className="message">{message}</p>}
