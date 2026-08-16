@@ -23,20 +23,18 @@ export function buildSegments(durations) {
  * Playback order stays 5 → 1 (countdown); when 5 appears first it sits at the bottom.
  */
 export function stackPositions({
-  leftPad = 48,
-  topPad = 220,
   lineHeight = 140,
   fontSize = 120,
-  originX = 0,
-  originY = 0,
+  originX = 48,
+  originY = 220,
 } = {}) {
   /** @type {Record<number, {x:number,y:number,fontSize:number}>} */
   const out = {};
   for (let rank = 1; rank <= 5; rank++) {
     const stackIndex = rank - 1; // 1 -> 0 (top), 5 -> 4 (bottom)
     out[rank] = {
-      x: leftPad + originX,
-      y: topPad + originY + stackIndex * lineHeight,
+      x: originX,
+      y: originY + stackIndex * lineHeight,
       fontSize,
     };
   }
@@ -45,3 +43,9 @@ export function stackPositions({
 
 export const ANIM_SECONDS = 0.45;
 export const CANVAS = { width: 1080, height: 1920 };
+export const RANK_FONT = 120;
+export const RANK_LINE_HEIGHT = 140;
+export const TITLE_FONT = 64;
+export const TITLE_LINE_SPACING = 8;
+export const CAPTION_LINE_SPACING = 8;
+export const CAPTION_X_RATIO = 0.85;

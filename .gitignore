@@ -7,3 +7,4 @@ server/ranking/
 .DS_Store
 .superpowers/
 *.tsbuildinfo
+tmp-export-frames/

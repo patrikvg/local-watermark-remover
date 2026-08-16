@@ -112,8 +112,12 @@ export async function startRankingExport(body: {
   title: string;
   titlePos: { x: number; y: number };
   titleBorder?: number;
+  titleWidth?: number;
+  titleWrap?: boolean;
   ranksPos?: { x: number; y: number };
   captions?: string[];
+  captionWidths?: number[];
+  captionWraps?: boolean[];
   clipVolumes?: number[];
   masterVolume?: number;
   muteClips: boolean;

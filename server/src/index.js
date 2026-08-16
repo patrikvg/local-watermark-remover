@@ -298,6 +298,10 @@ app.post("/api/ranking/export", async (request, reply) => {
     muteClips,
     bgmId,
     bgmVolume,
+    titleWidth,
+    titleWrap,
+    captionWidths,
+    captionWraps,
   } = body;
 
   if (!Array.isArray(clipIds) || clipIds.length !== 5) {
@@ -347,8 +351,12 @@ app.post("/api/ranking/export", async (request, reply) => {
     title,
     titlePos,
     titleBorder: titleBorder ?? 3,
+    titleWidth: titleWidth ?? 900,
+    titleWrap: titleWrap !== false,
     ranksPos: ranksPos ?? { x: 0, y: 0 },
     captions: Array.isArray(captions) ? captions : ["", "", "", "", ""],
+    captionWidths: Array.isArray(captionWidths) ? captionWidths : undefined,
+    captionWraps: Array.isArray(captionWraps) ? captionWraps : undefined,
     clipVolumes: Array.isArray(clipVolumes) ? clipVolumes : [1, 1, 1, 1, 1],
     masterVolume: masterVolume ?? 1,
     muteClips: Boolean(muteClips),

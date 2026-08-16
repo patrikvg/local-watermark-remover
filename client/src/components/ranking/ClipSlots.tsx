@@ -6,6 +6,8 @@ export type SlotItem = {
   objectUrl: string;
   caption: string;
   volume: number;
+  wrap: boolean;
+  captionWidth: number;
 } | null;
 
 type Props = {
@@ -14,6 +16,7 @@ type Props = {
   onBatchUpload: (files: File[]) => void;
   onReorder: (from: number, to: number) => void;
   onCaptionChange: (index: number, caption: string) => void;
+  onCaptionWrapChange: (index: number, wrap: boolean) => void;
   onClipVolumeChange: (index: number, volume: number) => void;
   disabled?: boolean;
 };
@@ -38,6 +41,7 @@ export default function ClipSlots({
   onBatchUpload,
   onReorder,
   onCaptionChange,
+  onCaptionWrapChange,
   onClipVolumeChange,
   disabled = false,
 }: Props) {
@@ -130,15 +134,27 @@ export default function ClipSlots({
                     {formatDuration(slot.clip.duration)} · {slot.clip.width}×
                     {slot.clip.height}
                   </span>
-                  <input
+                  <textarea
                     className="clip-slot-caption"
-                    type="text"
+                    rows={2}
                     value={slot.caption}
                     disabled={disabled}
-                    placeholder='Place title e.g. "Ronaldo vs Barca"'
+                    placeholder={'Place title e.g. "Ronaldo vs Barca"'}
                     onChange={(e) => onCaptionChange(index, e.target.value)}
                     onPointerDown={(e) => e.stopPropagation()}
                   />
+                  <label className="check-row clip-slot-wrap">
+                    <input
+                      type="checkbox"
+                      checked={slot.wrap}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        onCaptionWrapChange(index, e.target.checked)
+                      }
+                      onPointerDown={(e) => e.stopPropagation()}
+                    />
+                    Wrap to next line
+                  </label>
                   <label className="clip-slot-vol">
                     <span>Vol</span>
                     <input

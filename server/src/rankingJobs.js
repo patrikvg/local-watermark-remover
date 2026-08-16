@@ -40,8 +40,12 @@ function runRankingFfmpeg(job, encoder) {
       title: job.title,
       titlePos: job.titlePos,
       titleBorder: job.titleBorder,
+      titleWidth: job.titleWidth,
+      titleWrap: job.titleWrap,
       ranksPos: job.ranksPos,
       captions: job.captions,
+      captionWidths: job.captionWidths,
+      captionWraps: job.captionWraps,
       clipVolumes: job.clipVolumes,
       masterVolume: job.masterVolume,
       muteClips: job.muteClips,
@@ -97,8 +101,12 @@ export function createRankingJob({
   title,
   titlePos,
   titleBorder = 3,
+  titleWidth = 900,
+  titleWrap = true,
   ranksPos = { x: 0, y: 0 },
   captions = ["", "", "", "", ""],
+  captionWidths,
+  captionWraps,
   clipVolumes = [1, 1, 1, 1, 1],
   masterVolume = 1,
   muteClips,
@@ -124,6 +132,8 @@ export function createRankingJob({
     title,
     titlePos,
     titleBorder: Number(titleBorder) || 0,
+    titleWidth: Number(titleWidth) || 900,
+    titleWrap: titleWrap !== false,
     ranksPos: {
       x: Number(ranksPos?.x) || 0,
       y: Number(ranksPos?.y) || 0,
@@ -131,6 +141,12 @@ export function createRankingJob({
     captions: Array.isArray(captions)
       ? captions.map((c) => String(c ?? "")).slice(0, 5)
       : ["", "", "", "", ""],
+    captionWidths: Array.isArray(captionWidths)
+      ? captionWidths.map((w) => Number(w) || 420).slice(0, 5)
+      : undefined,
+    captionWraps: Array.isArray(captionWraps)
+      ? captionWraps.map((w) => w !== false).slice(0, 5)
+      : undefined,
     clipVolumes: Array.isArray(clipVolumes)
       ? clipVolumes.map((v) => Number(v) || 0).slice(0, 5)
       : [1, 1, 1, 1, 1],

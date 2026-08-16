@@ -30,12 +30,8 @@ describe("buildSegments", () => {
 });
 
 describe("stackPositions", () => {
-  it("stacks rank 1 at top and 5 at bottom", () => {
+  it("stacks rank 1 at top and 5 at bottom by default", () => {
     const pos = stackPositions({
-      canvasWidth: 1080,
-      canvasHeight: 1920,
-      leftPad: 48,
-      topPad: 220,
       lineHeight: 140,
       fontSize: 120,
     });
@@ -45,15 +41,16 @@ describe("stackPositions", () => {
     expect(pos[5].y).toBe(220 + 140 * 4);
   });
 
-  it("applies origin offset for movable stack", () => {
+  it("uses origin as the canvas position of rank 1", () => {
     const pos = stackPositions({
-      leftPad: 48,
-      topPad: 220,
       lineHeight: 140,
-      originX: 10,
-      originY: 20,
+      fontSize: 120,
+      originX: 64,
+      originY: 640,
     });
-    expect(pos[1].x).toBe(58);
-    expect(pos[1].y).toBe(240);
+    expect(pos[1].x).toBe(64);
+    expect(pos[1].y).toBe(640);
+    expect(pos[2].y).toBe(780);
+    expect(pos[5].y).toBe(640 + 140 * 4);
   });
 });
