@@ -14,7 +14,19 @@ import {
   pickEncoder,
   probeVideo,
 } from "./jobs.js";
-import { ensureDirs, outputsDir, uploadsDir } from "./paths.js";
+import {
+  cancelRankingJob,
+  createRankingJob,
+  getRankingJob,
+  listPublicRankingJob,
+} from "./rankingJobs.js";
+import {
+  ensureDirs,
+  outputsDir,
+  rankingBgmDir,
+  rankingClipsDir,
+  uploadsDir,
+} from "./paths.js";
 
 ensureDirs();
 
@@ -27,6 +39,10 @@ await app.register(multipart, {
 
 /** @type {Map<string, object>} */
 const uploads = new Map();
+/** @type {Map<string, object>} */
+const rankingClips = new Map();
+/** @type {Map<string, object>} */
+const rankingBgm = new Map();
 
 let cachedEncoder = "libx264";
 let binaries = { ffmpeg: false, ffprobe: false };
@@ -160,6 +176,174 @@ app.get("/api/jobs/:id/download", async (request, reply) => {
   reply.header(
     "Content-Disposition",
     `attachment; filename="cleaned-${job.outputName}"`
+  );
+  return reply.send(fs.createReadStream(job.outputPath));
+});
+
+app.post("/api/ranking/clips", async (request, reply) => {
+  if (!binaries.ffmpeg || !binaries.ffprobe) {
+    return reply.code(503).send({
+      error: "FFmpeg/ffprobe not found on PATH. Install FFmpeg and restart.",
+    });
+  }
+
+  const file = await request.file();
+  if (!file) {
+    return reply.code(400).send({ error: "No file uploaded" });
+  }
+
+  const id = randomUUID();
+  const ext = path.extname(file.filename || "") || ".mp4";
+  const storedName = `${id}${ext}`;
+  const dest = path.join(rankingClipsDir, storedName);
+  await fs.promises.writeFile(dest, await file.toBuffer());
+
+  let meta;
+  try {
+    meta = await probeVideo(dest);
+  } catch (err) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({
+      error: err instanceof Error ? err.message : "Could not read video",
+    });
+  }
+
+  if (!meta.width || !meta.height) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({ error: "Could not detect video dimensions" });
+  }
+
+  rankingClips.set(id, {
+    id,
+    path: dest,
+    filename: file.filename,
+    ...meta,
+  });
+
+  return {
+    id,
+    filename: file.filename,
+    width: meta.width,
+    height: meta.height,
+    duration: meta.duration,
+  };
+});
+
+app.post("/api/ranking/bgm", async (request, reply) => {
+  if (!binaries.ffmpeg || !binaries.ffprobe) {
+    return reply.code(503).send({
+      error: "FFmpeg/ffprobe not found on PATH. Install FFmpeg and restart.",
+    });
+  }
+
+  const file = await request.file();
+  if (!file) {
+    return reply.code(400).send({ error: "No file uploaded" });
+  }
+
+  const id = randomUUID();
+  const ext = path.extname(file.filename || "") || ".mp3";
+  const storedName = `${id}${ext}`;
+  const dest = path.join(rankingBgmDir, storedName);
+  await fs.promises.writeFile(dest, await file.toBuffer());
+
+  rankingBgm.set(id, {
+    id,
+    path: dest,
+    filename: file.filename,
+  });
+
+  return { id, filename: file.filename };
+});
+
+app.post("/api/ranking/export", async (request, reply) => {
+  if (!binaries.ffmpeg || !binaries.ffprobe) {
+    return reply.code(503).send({
+      error: "FFmpeg/ffprobe not found on PATH. Install FFmpeg and restart.",
+    });
+  }
+
+  const body = request.body ?? {};
+  const { clipIds, title, titlePos, muteClips, bgmId, bgmVolume } = body;
+
+  if (!Array.isArray(clipIds) || clipIds.length !== 5) {
+    return reply.code(400).send({ error: "Exactly 5 clipIds are required" });
+  }
+  if (!title || typeof title !== "string") {
+    return reply.code(400).send({ error: "title is required" });
+  }
+  if (
+    !titlePos ||
+    typeof titlePos.x !== "number" ||
+    typeof titlePos.y !== "number"
+  ) {
+    return reply
+      .code(400)
+      .send({ error: "titlePos with numeric x and y is required" });
+  }
+
+  const clips = [];
+  for (const clipId of clipIds) {
+    const clip = rankingClips.get(clipId);
+    if (!clip) {
+      return reply.code(404).send({ error: `Clip not found: ${clipId}` });
+    }
+    clips.push(clip);
+  }
+
+  let bgmPath = null;
+  if (bgmId) {
+    const bgm = rankingBgm.get(bgmId);
+    if (!bgm) {
+      return reply.code(404).send({ error: "BGM not found" });
+    }
+    bgmPath = bgm.path;
+  }
+
+  if (muteClips && !bgmPath) {
+    return reply
+      .code(400)
+      .send({ error: "Background music is required when clips are muted" });
+  }
+
+  const job = createRankingJob({
+    clipPaths: clips.map((c) => c.path),
+    durations: clips.map((c) => c.duration),
+    title,
+    titlePos,
+    muteClips: Boolean(muteClips),
+    bgmPath,
+    bgmVolume: bgmVolume ?? 0.3,
+    encoder: cachedEncoder,
+  });
+
+  return { jobId: job.id };
+});
+
+app.get("/api/ranking/jobs/:id", async (request, reply) => {
+  const job = getRankingJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicRankingJob(job);
+});
+
+app.post("/api/ranking/jobs/:id/cancel", async (request, reply) => {
+  const job = cancelRankingJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicRankingJob(job);
+});
+
+app.get("/api/ranking/jobs/:id/download", async (request, reply) => {
+  const job = getRankingJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  if (job.status !== "done") {
+    return reply.code(409).send({ error: "Job not finished" });
+  }
+  if (!fs.existsSync(job.outputPath)) {
+    return reply.code(404).send({ error: "Output missing" });
+  }
+  reply.header(
+    "Content-Disposition",
+    `attachment; filename="ranking-${job.outputName}"`
   );
   return reply.send(fs.createReadStream(job.outputPath));
 });
