@@ -15,14 +15,7 @@ import AudioControls from "../components/ranking/AudioControls";
 import ClipSlots, { type SlotItem } from "../components/ranking/ClipSlots";
 import RankingPreview from "../components/ranking/RankingPreview";
 import TitleControls from "../components/ranking/TitleControls";
-import {
-  CANVAS,
-  estimateTitleBoxSize,
-  centerTitleX,
-  centerTitleY,
-  toCanvasLen,
-  toCanvasPos,
-} from "../rankingLayout";
+import { toCanvasLen, toCanvasPos } from "../rankingLayout";
 import {
   cssFamilyForTitleFont,
   type TitleFontId,
@@ -314,23 +307,6 @@ export default function RankingPage() {
     }
   }
 
-  function onCenterTitle() {
-    const { width: stageW, height: stageH } = stageSizeRef.current;
-    if (stageW <= 0 || stageH <= 0) return;
-    const scale = stageW / CANVAS.width;
-    const box = estimateTitleBoxSize(
-      title,
-      titleWidth,
-      titleWrap,
-      scale,
-      titleSize
-    );
-    setTitlePos({
-      x: centerTitleX(stageW, box.width),
-      y: centerTitleY(stageH, box.height),
-    });
-  }
-
   return (
     <>
       <header className="hero">
@@ -390,13 +366,6 @@ export default function RankingPage() {
                 />
                 Wrap title to next line
               </label>
-              <button
-                type="button"
-                disabled={busy || processing}
-                onClick={onCenterTitle}
-              >
-                Mitte
-              </button>
             </div>
 
             <div className="ranking-editor-section">
@@ -446,6 +415,7 @@ export default function RankingPage() {
             onCaptionWidthChange={onCaptionWidthChange}
             muteClips={muteClips}
             masterVolume={masterVolume}
+            onMasterVolumeChange={setMasterVolume}
             stageSizeRef={stageSizeRef}
             fontFamilyCss={cssFamilyForTitleFont(titleFont)}
             fontSizeCanvas={titleSize}

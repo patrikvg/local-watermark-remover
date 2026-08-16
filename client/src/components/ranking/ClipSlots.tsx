@@ -32,7 +32,10 @@ function formatDuration(seconds: number) {
 
 function takeVideoFiles(list: FileList | File[] | null): File[] {
   if (!list) return [];
-  return Array.from(list).filter((f) => f.type.startsWith("video/") || /\.(mp4|mov|mkv|webm|avi)$/i.test(f.name));
+  return Array.from(list).filter(
+    (f) =>
+      f.type.startsWith("video/") || /\.(mp4|mov|mkv|webm|avi)$/i.test(f.name)
+  );
 }
 
 export default function ClipSlots({
@@ -92,14 +95,6 @@ export default function ClipSlots({
               (dragOver === index ? " is-drag-over" : "") +
               (slot ? " is-filled" : "")
             }
-            draggable={Boolean(slot) && !disabled}
-            onDragStart={() => {
-              dragFrom.current = index;
-            }}
-            onDragEnd={() => {
-              dragFrom.current = null;
-              setDragOver(null);
-            }}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(index);
@@ -111,7 +106,7 @@ export default function ClipSlots({
               e.preventDefault();
               setDragOver(null);
               const files = takeVideoFiles(e.dataTransfer.files);
-              if (files.length === 1 && !dragFrom.current) {
+              if (files.length === 1 && dragFrom.current == null) {
                 onUpload(index, files[0]);
                 return;
               }
@@ -121,6 +116,27 @@ export default function ClipSlots({
               dragFrom.current = null;
             }}
           >
+            {slot ? (
+              <span
+                className="clip-slot-handle"
+                draggable={!disabled}
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+                onDragStart={(e) => {
+                  dragFrom.current = index;
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(index));
+                }}
+                onDragEnd={() => {
+                  dragFrom.current = null;
+                  setDragOver(null);
+                }}
+              >
+                ⠿
+              </span>
+            ) : (
+              <span className="clip-slot-handle is-empty" aria-hidden />
+            )}
             <span className="clip-slot-rank" aria-hidden>
               #{rankLabel(index)}
             </span>
@@ -141,7 +157,6 @@ export default function ClipSlots({
                     disabled={disabled}
                     placeholder={'Place title e.g. "Ronaldo vs Barca"'}
                     onChange={(e) => onCaptionChange(index, e.target.value)}
-                    onPointerDown={(e) => e.stopPropagation()}
                   />
                   <label className="check-row clip-slot-wrap">
                     <input
@@ -151,7 +166,6 @@ export default function ClipSlots({
                       onChange={(e) =>
                         onCaptionWrapChange(index, e.target.checked)
                       }
-                      onPointerDown={(e) => e.stopPropagation()}
                     />
                     Wrap to next line
                   </label>
@@ -167,7 +181,6 @@ export default function ClipSlots({
                       onChange={(e) =>
                         onClipVolumeChange(index, Number(e.target.value))
                       }
-                      onPointerDown={(e) => e.stopPropagation()}
                     />
                     <span className="time">{slot.volume.toFixed(2)}</span>
                   </label>
