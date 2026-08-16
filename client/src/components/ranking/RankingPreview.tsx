@@ -247,6 +247,7 @@ export default function RankingPreview({
         <div
           ref={stageRef}
           className="ranking-stage"
+          onPointerEnter={() => bumpChrome()}
           onPointerMove={() => bumpChrome()}
           onPointerDown={() => bumpChrome()}
           onClick={(e) => {
