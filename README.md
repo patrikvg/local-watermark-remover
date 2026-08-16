@@ -25,6 +25,17 @@ Open http://127.0.0.1:5173 (or http://localhost:5173). API listens on http://127
 
 If you see `EADDRINUSE`, an old `npm run dev` is still running — stop it with Ctrl+C, or close that terminal, then start again.
 
+## Ranking
+
+Build a vertical Top-5 Short from five clips:
+
+1. Run `npm run dev` and open the **Ranking** tab.
+2. Upload 5 clips, then reorder them (first slot = rank **#5**, last slot = rank **#1**).
+3. Drag the title on the preview; choose audio (clip audio + optional BGM, or mute clips + BGM).
+4. Export at **9:16** / **1080×1920**.
+
+The **Watermark** tab remains a separate flow for box-based watermark removal.
+
 ## Tests
 
 ```powershell

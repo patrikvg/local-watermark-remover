@@ -2,6 +2,7 @@ node_modules/
 dist/
 server/uploads/
 server/outputs/
+server/ranking/
 *.log
 .DS_Store
 .superpowers/
