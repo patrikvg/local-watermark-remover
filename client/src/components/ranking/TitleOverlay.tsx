@@ -1,62 +1,143 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import {
+  CHAR_WIDTH_RATIO,
+  TITLE_FONT,
+  TITLE_LINE_SPACING,
+  TITLE_SNAP_THRESHOLD,
+  centerTitleX,
+  wrapOverlayText,
+} from "../../rankingLayout";
 
 type Props = {
   title: string;
   pos: { x: number; y: number };
   onPosChange: (pos: { x: number; y: number }) => void;
   borderWidth: number;
+  boxWidth: number;
+  onBoxWidthChange: (width: number) => void;
+  wrap: boolean;
+  scale: number;
+  stageWidth: number;
 };
+
+const MIN_W = 48;
 
 export default function TitleOverlay({
   title,
   pos,
   onPosChange,
   borderWidth,
+  boxWidth,
+  onBoxWidthChange,
+  wrap,
+  scale,
+  stageWidth,
 }: Props) {
   const dragging = useRef(false);
-  const origin = useRef({ pointerX: 0, pointerY: 0, startX: 0, startY: 0 });
-  const bw = Math.max(0, borderWidth);
+  const resizing = useRef(false);
+  const origin = useRef({
+    pointerX: 0,
+    pointerY: 0,
+    startX: 0,
+    startY: 0,
+    startW: 0,
+  });
+  const [snappedX, setSnappedX] = useState(false);
+  const s = Math.max(0.05, scale);
+  const bw = Math.max(0, borderWidth) * s;
+  const canvasWidth = boxWidth / s;
+  const display = wrapOverlayText(title || "Title", canvasWidth, TITLE_FONT, wrap);
+  const effectiveW = wrap
+    ? boxWidth
+    : Math.max(
+        MIN_W,
+        String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO * s
+      );
 
   return (
-    <div
-      className="ranking-title"
-      style={{
-        left: pos.x,
-        top: pos.y,
-        WebkitTextStroke: bw > 0 ? `${bw}px black` : undefined,
-        paintOrder: "stroke fill",
-      }}
-      onPointerDown={(e) => {
-        e.preventDefault();
-        e.currentTarget.setPointerCapture(e.pointerId);
-        dragging.current = true;
-        origin.current = {
-          pointerX: e.clientX,
-          pointerY: e.clientY,
-          startX: pos.x,
-          startY: pos.y,
-        };
-      }}
-      onPointerMove={(e) => {
-        if (!dragging.current) return;
-        const dx = e.clientX - origin.current.pointerX;
-        const dy = e.clientY - origin.current.pointerY;
-        onPosChange({
-          x: Math.max(0, origin.current.startX + dx),
-          y: Math.max(0, origin.current.startY + dy),
-        });
-      }}
-      onPointerUp={(e) => {
-        dragging.current = false;
-        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-      }}
-      onPointerCancel={() => {
-        dragging.current = false;
-      }}
-    >
-      {title || "Title"}
-    </div>
+    <>
+      {snappedX ? (
+        <div
+          className="ranking-snap-guide"
+          style={{ left: stageWidth / 2 }}
+          aria-hidden
+        />
+      ) : null}
+      <div
+        className={"ranking-title" + (wrap ? "" : " is-nowrap")}
+        style={{
+          left: pos.x,
+          top: pos.y,
+          width: wrap ? boxWidth : undefined,
+          fontSize: TITLE_FONT * s,
+          lineHeight: `${(TITLE_FONT + TITLE_LINE_SPACING) * s}px`,
+          WebkitTextStroke: bw > 0 ? `${bw}px black` : undefined,
+          paintOrder: "stroke fill",
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          dragging.current = true;
+          origin.current = {
+            pointerX: e.clientX,
+            pointerY: e.clientY,
+            startX: pos.x,
+            startY: pos.y,
+            startW: boxWidth,
+          };
+        }}
+        onPointerMove={(e) => {
+          if (resizing.current) {
+            const dx = e.clientX - origin.current.pointerX;
+            onBoxWidthChange(Math.max(MIN_W, origin.current.startW + dx));
+            return;
+          }
+          if (!dragging.current) return;
+          const dx = e.clientX - origin.current.pointerX;
+          const dy = e.clientY - origin.current.pointerY;
+          let nextX = Math.max(0, origin.current.startX + dx);
+          const nextY = Math.max(0, origin.current.startY + dy);
+          const cx = centerTitleX(stageWidth, effectiveW);
+          const near = Math.abs(nextX - cx) <= TITLE_SNAP_THRESHOLD;
+          if (near) nextX = cx;
+          setSnappedX(near);
+          onPosChange({ x: nextX, y: nextY });
+        }}
+        onPointerUp={(e) => {
+          dragging.current = false;
+          resizing.current = false;
+          setSnappedX(false);
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          }
+        }}
+        onPointerCancel={() => {
+          dragging.current = false;
+          resizing.current = false;
+          setSnappedX(false);
+        }}
+      >
+        {display}
+        <span
+          className="ranking-overlay-handle"
+          aria-hidden
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.parentElement?.setPointerCapture(e.pointerId);
+            resizing.current = true;
+            dragging.current = false;
+            setSnappedX(false);
+            origin.current = {
+              pointerX: e.clientX,
+              pointerY: e.clientY,
+              startX: pos.x,
+              startY: pos.y,
+              startW: boxWidth,
+            };
+          }}
+        />
+      </div>
+    </>
   );
 }
