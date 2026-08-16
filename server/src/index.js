@@ -35,8 +35,15 @@ import {
   outputsDir,
   rankingBgmDir,
   rankingClipsDir,
+  tiktokDir,
   uploadsDir,
 } from "./paths.js";
+import {
+  cancelTiktokJob,
+  createTiktokJob,
+  getTiktokJob,
+  listPublicTiktokJob,
+} from "./tiktokJobs.js";
 import { checkYtdlp, probeUrl } from "./ytdlp.js";
 
 ensureDirs();
@@ -290,6 +297,81 @@ app.get("/api/download/:id/file", async (request, reply) => {
     return reply.code(404).send({ error: "Output missing" });
   }
   const name = safeDownloadFilename(job.title || job.outputName);
+  reply.header("Content-Disposition", `attachment; filename="${name}"`);
+  return reply.send(fs.createReadStream(job.outputPath));
+});
+
+app.post("/api/tiktok/upload", async (request, reply) => {
+  if (!binaries.ffmpeg || !binaries.ffprobe) {
+    return reply.code(503).send({
+      error: "FFmpeg/ffprobe not found on PATH. Install FFmpeg and restart.",
+    });
+  }
+  const file = await request.file();
+  if (!file) {
+    return reply.code(400).send({ error: "No file uploaded" });
+  }
+  const id = randomUUID();
+  const ext = path.extname(file.filename || "") || ".mp4";
+  const storedName = `${id}${ext}`;
+  const dest = path.join(tiktokDir, storedName);
+  await fs.promises.writeFile(dest, await file.toBuffer());
+
+  let meta;
+  try {
+    meta = await probeVideo(dest);
+  } catch (err) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({
+      error: err instanceof Error ? err.message : "Could not read video",
+    });
+  }
+  if (!meta.width || !meta.height) {
+    await fs.promises.unlink(dest).catch(() => {});
+    return reply.code(400).send({ error: "Could not detect video dimensions" });
+  }
+
+  const job = createTiktokJob({
+    inputPath: dest,
+    tiktokDir,
+    filename: file.filename || storedName,
+    duration: meta.duration,
+    preferredEncoder: cachedEncoder,
+    registerUpload: registerDownloadedUpload,
+  });
+  return {
+    jobId: job.id,
+    width: meta.width,
+    height: meta.height,
+    duration: meta.duration,
+    filename: file.filename || storedName,
+  };
+});
+
+app.get("/api/tiktok/:id", async (request, reply) => {
+  const job = getTiktokJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicTiktokJob(job);
+});
+
+app.post("/api/tiktok/:id/cancel", async (request, reply) => {
+  const job = cancelTiktokJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  return listPublicTiktokJob(job);
+});
+
+app.get("/api/tiktok/:id/file", async (request, reply) => {
+  const job = getTiktokJob(request.params.id);
+  if (!job) return reply.code(404).send({ error: "Job not found" });
+  if (job.status !== "done") {
+    return reply.code(409).send({ error: "Job not finished" });
+  }
+  if (!job.outputPath || !fs.existsSync(job.outputPath)) {
+    return reply.code(404).send({ error: "Output missing" });
+  }
+  const name = safeDownloadFilename(
+    (job.filename || "video").replace(/\.[^.]+$/, "") + "-tiktok"
+  );
   reply.header("Content-Disposition", `attachment; filename="${name}"`);
   return reply.send(fs.createReadStream(job.outputPath));
 });
