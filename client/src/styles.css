@@ -538,30 +538,46 @@ button:disabled {
   background: #000;
 }
 
-.ranking-transport {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.ranking-transport-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 1.5rem 0.55rem 0.55rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
-.ranking-transport-row {
+.ranking-transport-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ranking-transport-overlay .ranking-transport-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
-.ranking-transport-row input[type="range"] {
+.ranking-transport-overlay .ranking-transport-row input[type="range"] {
   flex: 1;
   min-width: 0;
 }
 
-.ranking-time {
+.ranking-transport-overlay .ranking-time {
   flex: 0 0 auto;
-  min-width: 5.8rem;
+  min-width: 5.2rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  color: var(--muted);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ranking-transport-overlay button {
+  flex: 0 0 auto;
 }
 
 .ranking-stage-empty {

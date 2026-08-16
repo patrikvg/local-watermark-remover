@@ -77,6 +77,8 @@ export default function RankingPreview({
   const resizingCaption = useRef<number | null>(null);
   const pendingSeek = useRef<number | null>(null);
   const scrubbing = useRef(false);
+  const idleTimer = useRef<number | null>(null);
+  const [chromeVisible, setChromeVisible] = useState(true);
   const ranksOrigin = useRef({
     pointerX: 0,
     pointerY: 0,
@@ -84,6 +86,14 @@ export default function RankingPreview({
     startY: 0,
     startW: 0,
   });
+
+  function bumpChrome() {
+    setChromeVisible(true);
+    if (idleTimer.current != null) window.clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => {
+      if (!scrubbing.current) setChromeVisible(false);
+    }, 2000);
+  }
 
   const urls = useMemo(
     () => slots.map((s) => s?.objectUrl ?? null),
@@ -137,6 +147,16 @@ export default function RankingPreview({
       v.currentTime = 0;
     }
   }, [urlsKey]);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimer.current != null) window.clearTimeout(idleTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (playable) bumpChrome();
+  }, [playable]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -224,7 +244,23 @@ export default function RankingPreview({
         Drag the boxes to move. Drag the right edge to set wrap width.
       </p>
       <div className="ranking-stage-wrap">
-        <div ref={stageRef} className="ranking-stage">
+        <div
+          ref={stageRef}
+          className="ranking-stage"
+          onPointerMove={() => bumpChrome()}
+          onPointerDown={() => bumpChrome()}
+          onClick={(e) => {
+            const t = e.target as HTMLElement;
+            if (
+              t.closest(".ranking-title") ||
+              t.closest(".ranking-rank-stack") ||
+              t.closest(".ranking-transport-overlay")
+            ) {
+              return;
+            }
+            onPlayPause();
+          }}
+        >
           {currentSrc ? (
             <video
               ref={videoRef}
@@ -395,41 +431,52 @@ export default function RankingPreview({
             scale={scale}
             stageWidth={stageW}
           />
+          <div
+            className={
+              "ranking-transport-overlay" +
+              (chromeVisible ? " is-visible" : "")
+            }
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="ranking-transport-row">
+              <button type="button" disabled={!playable} onClick={onPlayPause}>
+                {playing ? "Pause" : "Play"}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0.01, totalDuration)}
+                step={0.05}
+                value={Math.min(timeline, totalDuration || 0)}
+                disabled={!playable}
+                aria-label="Seek"
+                onPointerDown={() => {
+                  scrubbing.current = true;
+                  bumpChrome();
+                }}
+                onPointerUp={() => {
+                  scrubbing.current = false;
+                  bumpChrome();
+                }}
+                onChange={(e) => {
+                  seekTo(Number(e.target.value));
+                  bumpChrome();
+                }}
+              />
+              <span className="ranking-time">
+                {playable
+                  ? `${formatTime(timeline)} / ${formatTime(totalDuration)}`
+                  : "0:00 / 0:00"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="ranking-transport">
-        <div className="ranking-transport-row">
-          <button type="button" disabled={!playable} onClick={onPlayPause}>
-            {playing ? "Pause" : "Play"}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(0.01, totalDuration)}
-            step={0.05}
-            value={Math.min(timeline, totalDuration || 0)}
-            disabled={!playable}
-            aria-label="Seek"
-            onPointerDown={() => {
-              scrubbing.current = true;
-            }}
-            onPointerUp={() => {
-              scrubbing.current = false;
-            }}
-            onChange={(e) => seekTo(Number(e.target.value))}
-          />
-          <span className="ranking-time">
-            {playable
-              ? `${formatTime(timeline)} / ${formatTime(totalDuration)}`
-              : "0:00 / 0:00"}
-          </span>
-        </div>
-        <span className="hint">
-          {playable
-            ? `Clip ${clipIndex + 1}/5 · rank #${rankForIndex(clipIndex)}`
-            : "Fill every slot first"}
-        </span>
-      </div>
+      <span className="hint">
+        {playable
+          ? `Clip ${clipIndex + 1}/5 · rank #${rankForIndex(clipIndex)}`
+          : "Fill every slot first"}
+      </span>
     </section>
   );
 }
