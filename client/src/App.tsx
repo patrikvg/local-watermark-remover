@@ -2,8 +2,9 @@ import { useState } from "react";
 import WatermarkPage from "./pages/WatermarkPage";
 import RankingPage from "./pages/RankingPage";
 import DownloadPage from "./pages/DownloadPage";
+import TikTokFormatPage from "./pages/TikTokFormatPage";
 
-type Tab = "watermark" | "ranking" | "download";
+type Tab = "watermark" | "ranking" | "download" | "tiktok";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("watermark");
@@ -35,6 +36,13 @@ export default function App() {
         >
           Download
         </button>
+        <button
+          type="button"
+          className={tab === "tiktok" ? "active" : ""}
+          onClick={() => setTab("tiktok")}
+        >
+          TikTok Format
+        </button>
       </nav>
       {tab === "watermark" && (
         <WatermarkPage initialUploadId={watermarkUploadId} />
@@ -42,6 +50,14 @@ export default function App() {
       {tab === "ranking" && <RankingPage />}
       {tab === "download" && (
         <DownloadPage
+          onOpenWatermark={(uploadId) => {
+            setWatermarkUploadId(uploadId);
+            setTab("watermark");
+          }}
+        />
+      )}
+      {tab === "tiktok" && (
+        <TikTokFormatPage
           onOpenWatermark={(uploadId) => {
             setWatermarkUploadId(uploadId);
             setTab("watermark");
