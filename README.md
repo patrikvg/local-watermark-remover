@@ -21,7 +21,9 @@ npm install --prefix client
 npm run dev
 ```
 
-Open http://127.0.0.1:5173 — API listens on http://127.0.0.1:8787.
+Open http://127.0.0.1:5173 (or http://localhost:5173). API listens on http://127.0.0.1:8787.
+
+If you see `EADDRINUSE`, an old `npm run dev` is still running — stop it with Ctrl+C, or close that terminal, then start again.
 
 ## Tests
 
