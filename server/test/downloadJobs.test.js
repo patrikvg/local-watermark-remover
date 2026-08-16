@@ -100,4 +100,46 @@ describe("downloadJobs", () => {
       outputName: "job-2.webm",
     });
   });
+
+  it("runs convert when tiktokFormat is true before registerUpload", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dl-tt-"));
+    const raw = path.join(dir, "raw.mp4");
+    const converted = path.join(dir, "tt.mp4");
+    const registerUpload = vi.fn(async ({ path: p }) => {
+      expect(p).toBe(converted);
+      return "upload-tt";
+    });
+    const runConvert = vi.fn(async (job) => {
+      fs.writeFileSync(converted, "tiktok");
+      job.outputPath = converted;
+      job.outputName = "tt.mp4";
+    });
+
+    const job = createDownloadJob({
+      url: "https://youtu.be/x",
+      downloadsDir: dir,
+      registerUpload,
+      tiktokFormat: true,
+      preferredEncoder: "libx264",
+      runDownload: async (j, onProgress) => {
+        fs.writeFileSync(raw, "raw");
+        j.outputPath = raw;
+        j.outputName = "raw.mp4";
+        onProgress(1);
+      },
+      runConvert,
+    });
+
+    await vi.waitFor(() => {
+      expect(getDownloadJob(job.id).status).toBe("done");
+    });
+
+    expect(runConvert).toHaveBeenCalled();
+    expect(listPublicDownloadJob(getDownloadJob(job.id)).uploadId).toBe(
+      "upload-tt"
+    );
+    expect(listPublicDownloadJob(getDownloadJob(job.id)).tiktokFormat).toBe(
+      true
+    );
+  });
 });

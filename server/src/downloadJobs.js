@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { buildTiktokFormatArgs } from "./tiktokFormat.js";
 import { buildDownloadArgs, parseProgressLine } from "./ytdlp.js";
 
 /** @type {Map<string, object>} */
@@ -21,6 +22,8 @@ export function listPublicDownloadJob(job) {
     outputName: job.outputName,
     uploadId: job.uploadId,
     title: job.title,
+    tiktokFormat: Boolean(job.tiktokFormat),
+    phase: job.phase ?? null,
   };
 }
 
@@ -101,12 +104,61 @@ async function defaultRunDownload(job, onProgress) {
   });
 }
 
+async function defaultRunConvert(job) {
+  const input = job.outputPath;
+  const outputName = `${job.id}.tiktok.mp4`;
+  const outputPath = path.join(job.downloadsDir, outputName);
+  const args = buildTiktokFormatArgs({
+    input,
+    output: outputPath,
+    encoder: job.preferredEncoder || "libx264",
+  });
+
+  await new Promise((resolve, reject) => {
+    const proc = spawn("ffmpeg", args, { windowsHide: true });
+    job.proc = proc;
+    let stderr = "";
+
+    proc.stderr?.on("data", (buf) => {
+      stderr += buf.toString();
+    });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      job.proc = null;
+      if (job.status === "cancelled") {
+        reject(new Error("cancelled"));
+        return;
+      }
+      if (code === 0) {
+        try {
+          if (input && input !== outputPath && fs.existsSync(input)) {
+            fs.unlinkSync(input);
+          }
+        } catch {
+          /* ignore */
+        }
+        job.outputPath = outputPath;
+        job.outputName = outputName;
+        resolve();
+        return;
+      }
+      const msg =
+        stderr.trim().split(/\r?\n/).filter(Boolean).at(-1) ||
+        `ffmpeg exited ${code}`;
+      reject(new Error(msg));
+    });
+  });
+}
+
 export function createDownloadJob({
   url,
   downloadsDir,
   registerUpload,
   title = null,
+  tiktokFormat = false,
+  preferredEncoder = "libx264",
   runDownload = defaultRunDownload,
+  runConvert = defaultRunConvert,
 }) {
   const id = randomUUID();
   const job = {
@@ -114,7 +166,10 @@ export function createDownloadJob({
     url,
     downloadsDir,
     title,
+    tiktokFormat: Boolean(tiktokFormat),
+    preferredEncoder,
     status: "queued",
+    phase: null,
     progress: 0,
     error: null,
     outputPath: null,
@@ -127,10 +182,21 @@ export function createDownloadJob({
   (async () => {
     job.status = "running";
     try {
+      job.phase = "download";
       await runDownload(job, (p) => {
-        if (job.status === "running") job.progress = p;
+        if (job.status === "running") {
+          job.progress = job.tiktokFormat ? Math.min(0.7, p * 0.7) : p;
+        }
       });
       if (job.status === "cancelled") return;
+      if (job.tiktokFormat) {
+        job.phase = "convert";
+        job.progress = Math.max(job.progress, 0.72);
+        await runConvert(job);
+        if (job.status === "cancelled") return;
+        job.progress = 0.95;
+      }
+      job.phase = null;
       job.uploadId = await registerUpload({
         path: job.outputPath,
         filename: job.outputName,
@@ -144,6 +210,7 @@ export function createDownloadJob({
       if (job.status === "cancelled") return;
       job.status = "error";
       job.error = err instanceof Error ? err.message : String(err);
+      job.phase = null;
     }
   })();
 
