@@ -19,6 +19,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   const [health, setHealth] = useState<Health | null>(null);
   const [url, setUrl] = useState("");
   const [probe, setProbe] = useState<DownloadProbe | null>(null);
+  const [probedUrl, setProbedUrl] = useState<string | null>(null);
   const [removeWatermark, setRemoveWatermark] = useState(false);
   const [job, setJob] = useState<DownloadJobStatus | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -27,6 +28,9 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   const [message, setMessage] = useState<string | null>(null);
 
   const processing = job?.status === "queued" || job?.status === "running";
+  const hasCurrentProbe = Boolean(
+    probe && probedUrl && url.trim() === probedUrl
+  );
   const percent = useMemo(
     () => Math.round((job?.progress ?? 0) * 100),
     [job?.progress]
@@ -68,11 +72,14 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
     if (!trimmed) return;
     setChecking(true);
     setProbe(null);
+    setProbedUrl(null);
     setJob(null);
     setJobId(null);
     setMessage(null);
     try {
-      setProbe(await probeDownload(trimmed));
+      const result = await probeDownload(trimmed);
+      setProbe(result);
+      setProbedUrl(trimmed);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
     } finally {
@@ -81,14 +88,13 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   }
 
   async function onDownload() {
-    const trimmed = url.trim();
-    if (!trimmed || !probe) return;
+    if (!probe || !probedUrl || url.trim() !== probedUrl) return;
     setStarting(true);
     setJob(null);
     setJobId(null);
     setMessage("Download wird gestartet…");
     try {
-      const { jobId: id } = await startDownload(trimmed);
+      const { jobId: id } = await startDownload(probedUrl);
       setJobId(id);
       setJob({
         id,
@@ -152,6 +158,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
             onChange={(event) => {
               setUrl(event.target.value);
               setProbe(null);
+              setProbedUrl(null);
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && health?.ytdlp && !checking) {
@@ -171,7 +178,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
           </button>
         </div>
 
-        {probe && (
+        {probe && hasCurrentProbe && (
           <div className="banner">
             <strong>{probe.title}</strong>
             <p className="meta">
@@ -196,7 +203,11 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
             type="button"
             className="primary"
             disabled={
-              !health?.ytdlp || !probe || checking || starting || processing
+              !health?.ytdlp ||
+              !hasCurrentProbe ||
+              checking ||
+              starting ||
+              processing
             }
             onClick={() => void onDownload()}
           >
