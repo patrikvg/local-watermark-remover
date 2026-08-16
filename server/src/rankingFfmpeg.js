@@ -15,6 +15,10 @@ import {
   overlayTextHeight,
   wrapOverlayText,
 } from "./textWrap.js";
+import {
+  escapeFontfileOption,
+  resolveTitleFontFile,
+} from "./titleFonts.js";
 
 export { wrapOverlayText } from "./textWrap.js";
 
@@ -41,10 +45,7 @@ export function escapeDrawtext(text) {
 }
 
 function fontfileOption() {
-  if (process.platform === "win32") {
-    return "fontfile='C\\:/Windows/Fonts/arialbd.ttf':";
-  }
-  return "";
+  return escapeFontfileOption(resolveTitleFontFile("arial", "bold"));
 }
 
 function videoChain(i) {
@@ -97,14 +98,45 @@ function captionDrawtext({ caption, start, x, y, fontSize }) {
   );
 }
 
-function titleDrawtext({ title, x, y, borderW }) {
-  const font = fontfileOption();
+export function normalizeFontColor(color) {
+  const raw = String(color || "#ffffff").trim();
+  const m = raw.match(/^#?([0-9a-fA-F]{6})$/);
+  if (!m) return "white";
+  return `0x${m[1].toUpperCase()}`;
+}
+
+function titleDrawtext({
+  title,
+  x,
+  y,
+  borderW,
+  boxWidth,
+  fontKey = "arial",
+  fontSize = TITLE_FONT,
+  weight = "bold",
+  color = "#ffffff",
+  align = "left",
+}) {
+  const file = resolveTitleFontFile(
+    fontKey,
+    weight === "regular" ? "regular" : "bold"
+  );
+  const font = escapeFontfileOption(file);
   const escaped = escapeDrawtext(title);
   const bw = Math.max(0, Math.round(Number(borderW) || 0));
+  const size = Math.max(12, Math.round(Number(fontSize) || TITLE_FONT));
+  const boxW = Math.max(1, Math.round(Number(boxWidth) || DEFAULT_TITLE_WIDTH));
+  const fontcolor = normalizeFontColor(color);
+  let xExpr = String(Math.round(Number(x) || 0));
+  if (align === "center") {
+    xExpr = `${Math.round(Number(x) || 0)}+(${boxW}-tw)/2`;
+  } else if (align === "right") {
+    xExpr = `${Math.round(Number(x) || 0)}+${boxW}-tw`;
+  }
   return (
     `drawtext=${font}text='${escaped}':` +
-    `fontsize=${TITLE_FONT}:fontcolor=white:borderw=${bw}:bordercolor=black:` +
-    `line_spacing=${TITLE_LINE_SPACING}:x=${x}:y=${y}`
+    `fontsize=${size}:fontcolor=${fontcolor}:borderw=${bw}:bordercolor=black:` +
+    `line_spacing=${TITLE_LINE_SPACING}:x=${xExpr}:y=${Math.round(Number(y) || 0)}`
   );
 }
 
@@ -117,6 +149,11 @@ function titleDrawtext({ title, x, y, borderW }) {
  *   titleBorder?: number,
  *   titleWidth?: number,
  *   titleWrap?: boolean,
+ *   titleFont?: string,
+ *   titleSize?: number,
+ *   titleWeight?: "regular"|"bold",
+ *   titleColor?: string,
+ *   titleAlign?: "left"|"center"|"right",
  *   ranksPos?: { x: number, y: number },
  *   captions?: string[],
  *   captionWidths?: number[],
@@ -139,6 +176,11 @@ export function buildRankingArgs({
   titleBorder = 3,
   titleWidth = DEFAULT_TITLE_WIDTH,
   titleWrap = true,
+  titleFont = "arial",
+  titleSize = TITLE_FONT,
+  titleWeight = "bold",
+  titleColor = "#ffffff",
+  titleAlign = "left",
   ranksPos = { x: 0, y: 0 },
   captions = ["", "", "", "", ""],
   captionWidths = [DEFAULT_CAPTION_WIDTH, DEFAULT_CAPTION_WIDTH, DEFAULT_CAPTION_WIDTH, DEFAULT_CAPTION_WIDTH, DEFAULT_CAPTION_WIDTH],
@@ -190,10 +232,17 @@ export function buildRankingArgs({
       ? captionWraps.map((w) => w !== false)
       : [true, true, true, true, true];
 
+  const resolvedTitleSize = Math.max(
+    12,
+    Math.round(Number(titleSize) || TITLE_FONT)
+  );
+  const boxW =
+    Number(titleWidth) > 0 ? Number(titleWidth) : DEFAULT_TITLE_WIDTH;
+
   const wrappedTitle = wrapOverlayText(
     title,
-    Number(titleWidth) > 0 ? Number(titleWidth) : DEFAULT_TITLE_WIDTH,
-    TITLE_FONT,
+    boxW,
+    resolvedTitleSize,
     titleWrap !== false
   );
 
@@ -272,6 +321,12 @@ export function buildRankingArgs({
       x: titlePos.x,
       y: titlePos.y,
       borderW: titleBorder,
+      boxWidth: boxW,
+      fontKey: titleFont,
+      fontSize: resolvedTitleSize,
+      weight: titleWeight,
+      color: titleColor,
+      align: titleAlign,
     })}[vfinal]`
   );
 

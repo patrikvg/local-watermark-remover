@@ -190,6 +190,33 @@ describe("buildRankingArgs", () => {
     const textH = capSize * 2 + 8;
     expect(y).toBe(rankY + Math.round((rankSize - textH) / 2));
   });
+
+  it("applies title font size color file and center align", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1, 1, 1, 1, 1],
+      title: "Top 5",
+      titlePos: { x: 100, y: 80 },
+      titleWidth: 900,
+      titleFont: "arial",
+      titleSize: 72,
+      titleWeight: "bold",
+      titleColor: "#ffcc00",
+      titleAlign: "center",
+      titleBorder: 4,
+      muteClips: false,
+      bgmPath: null,
+      bgmVolume: 0.2,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toMatch(/fontsize=72/);
+    expect(fc).toMatch(/fontcolor=0xFFCC00/);
+    expect(fc).toMatch(/fontfile=/);
+    expect(fc).toMatch(/borderw=4/);
+    expect(fc).toMatch(/100\+\(900-tw\)\/2/);
+  });
 });
 
 describe("wrapOverlayText", () => {
