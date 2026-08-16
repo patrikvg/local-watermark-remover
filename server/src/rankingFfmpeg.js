@@ -50,9 +50,11 @@ function fontfileOption() {
 
 function videoChain(i) {
   const { width, height } = CANVAS;
+  // Keep full chroma until after overlays — sharper text/ranks.
+  // Default scale (no lanczos): fewer ringing artifacts on phone footage.
   return (
     `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
-    `crop=${width}:${height},setsar=1,fps=30,format=yuv420p[v${i}]`
+    `crop=${width}:${height},setsar=1,fps=30[v${i}]`
   );
 }
 
@@ -327,8 +329,9 @@ export function buildRankingArgs({
       weight: titleWeight,
       color: titleColor,
       align: titleAlign,
-    })}[vfinal]`
+    })}[vpre]`
   );
+  filters.push(`[vpre]format=yuv420p[vfinal]`);
 
   let audioMap = "[aout]";
   const args = ["-y"];
@@ -356,12 +359,47 @@ export function buildRankingArgs({
   args.push("-filter_complex", filters.join(";"));
   args.push("-map", "[vfinal]", "-map", audioMap);
 
+  // 1080×1920 — solid quality without bitrate caps that crush detail.
   if (encoder === "h264_nvenc" || encoder === "hevc_nvenc") {
-    args.push("-c:v", encoder, "-preset", "p4", "-rc", "vbr", "-cq", "19");
+    args.push(
+      "-c:v",
+      encoder,
+      "-preset",
+      "p5",
+      "-rc",
+      "vbr",
+      "-cq",
+      "18",
+      "-profile:v",
+      "high",
+      "-pix_fmt",
+      "yuv420p"
+    );
   } else {
-    args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", "18");
+    args.push(
+      "-c:v",
+      "libx264",
+      "-preset",
+      "medium",
+      "-crf",
+      "17",
+      "-profile:v",
+      "high",
+      "-pix_fmt",
+      "yuv420p"
+    );
   }
 
-  args.push("-c:a", "aac", "-b:a", "192k", "-t", String(totalDuration), output);
+  args.push(
+    "-movflags",
+    "+faststart",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "256k",
+    "-t",
+    String(totalDuration),
+    output
+  );
   return args;
 }

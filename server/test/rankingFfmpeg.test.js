@@ -237,6 +237,31 @@ describe("buildRankingArgs", () => {
     expect(fc).toMatch(/borderw=4/);
     expect(fc).toMatch(/100\+\(900-tw\)\/2/);
   });
+
+  it("keeps chroma until after overlays and uses balanced HD encode", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1, 1, 1, 1, 1],
+      title: "HD",
+      titlePos: { x: 10, y: 10 },
+      muteClips: false,
+      bgmPath: null,
+      bgmVolume: 0.2,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("scale=1080:1920");
+    expect(fc).not.toContain("flags=lanczos");
+    expect(fc).toMatch(/fps=30\[v0\]/);
+    expect(fc).toContain("[vpre]format=yuv420p[vfinal]");
+    expect(args).toContain("libx264");
+    expect(args).toContain("medium");
+    expect(args).toContain("-crf");
+    expect(args).toContain("17");
+    expect(args).toContain("+faststart");
+    expect(args).toContain("256k");
+  });
 });
 
 describe("wrapOverlayText", () => {
