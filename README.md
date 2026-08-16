@@ -37,6 +37,13 @@ Build a vertical Top-5 Short from five clips:
 
 The **Watermark** tab remains a separate flow for box-based watermark removal.
 
+## TikTok Format
+
+1. Open the **TikTok Format** tab.
+2. Drop or choose a local video.
+3. Wait for convert to **1080×1920** (center-crop, high quality).
+4. Save the file, or enable **Danach Watermark entfernen** to continue in Watermark.
+
 ## Download
 
 1. Open the **Download** tab.
