@@ -283,7 +283,7 @@ export default function TitleOverlay({
 }
 ```
 
-**Important:** When implementing, merge into the real file — keep a single import line including `CHAR_WIDTH_RATIO`. Do not leave the comment stub. For wrap mode use `boxWidth` as `effectiveW`; for nowrap use the character-width estimate above.
+**Important:** For wrap mode use `boxWidth` as `effectiveW`; for nowrap use the character-width estimate above.
 
 - [ ] **Step 2: Pass `stageWidth` from RankingPreview**
 
