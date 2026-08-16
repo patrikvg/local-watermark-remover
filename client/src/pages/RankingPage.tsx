@@ -14,6 +14,7 @@ import {
 import AudioControls from "../components/ranking/AudioControls";
 import ClipSlots, { type SlotItem } from "../components/ranking/ClipSlots";
 import RankingPreview from "../components/ranking/RankingPreview";
+import TitleControls from "../components/ranking/TitleControls";
 import {
   CANVAS,
   estimateTitleBoxSize,
@@ -22,6 +23,10 @@ import {
   toCanvasLen,
   toCanvasPos,
 } from "../rankingLayout";
+import {
+  cssFamilyForTitleFont,
+  type TitleFontId,
+} from "../titleFonts";
 
 const EMPTY_SLOTS: SlotItem[] = [null, null, null, null, null];
 const DEFAULT_CAPTION_WIDTH = 110;
@@ -32,6 +37,13 @@ export default function RankingPage() {
   const [slots, setSlots] = useState<SlotItem[]>(EMPTY_SLOTS);
   const [title, setTitle] = useState("My Top 5");
   const [titlePos, setTitlePos] = useState({ x: 48, y: 72 });
+  const [titleFont, setTitleFont] = useState<TitleFontId>("arial");
+  const [titleSize, setTitleSize] = useState(64);
+  const [titleWeight, setTitleWeight] = useState<"regular" | "bold">("bold");
+  const [titleColor, setTitleColor] = useState("#ffffff");
+  const [titleAlign, setTitleAlign] = useState<"left" | "center" | "right">(
+    "left"
+  );
   const [titleBorder, setTitleBorder] = useState(3);
   const [titleWidth, setTitleWidth] = useState(210);
   const [titleWrap, setTitleWrap] = useState(true);
@@ -256,6 +268,11 @@ export default function RankingPage() {
         clipIds,
         title: title.trim(),
         titlePos: toCanvasPos(titlePos, width),
+        titleFont,
+        titleSize,
+        titleWeight,
+        titleColor,
+        titleAlign,
         titleBorder,
         titleWidth: toCanvasLen(titleWidth, width),
         titleWrap,
@@ -301,7 +318,13 @@ export default function RankingPage() {
     const { width: stageW, height: stageH } = stageSizeRef.current;
     if (stageW <= 0 || stageH <= 0) return;
     const scale = stageW / CANVAS.width;
-    const box = estimateTitleBoxSize(title, titleWidth, titleWrap, scale);
+    const box = estimateTitleBoxSize(
+      title,
+      titleWidth,
+      titleWrap,
+      scale,
+      titleSize
+    );
     setTitlePos({
       x: centerTitleX(stageW, box.width),
       y: centerTitleY(stageH, box.height),
@@ -332,74 +355,81 @@ export default function RankingPage() {
       <section className="workspace ranking-workspace">
         <div className="ranking-layout">
           <div className="ranking-editor">
-            <h2 className="section-title">Clips (play order #5 → #1)</h2>
-            <p className="hint">
-              First slot plays as #5, last as #1. Stack shows #1 on top. Drag
-              rows to reorder.
-            </p>
-            <ClipSlots
-              slots={slots}
-              onUpload={onUpload}
-              onBatchUpload={(files) => void onBatchUpload(files)}
-              onReorder={onReorder}
-              onCaptionChange={onCaptionChange}
-              onCaptionWrapChange={onCaptionWrapChange}
-              onClipVolumeChange={onClipVolumeChange}
-              disabled={!ready || busy || processing}
-            />
-
-            <label className="title-field">
-              <span className="section-title">Title</span>
-              <textarea
-                rows={3}
-                value={title}
+            <div className="ranking-editor-section">
+              <h2 className="section-title">Title</h2>
+              <TitleControls
+                font={titleFont}
+                onFontChange={setTitleFont}
+                size={titleSize}
+                onSizeChange={setTitleSize}
+                weight={titleWeight}
+                onWeightChange={setTitleWeight}
+                color={titleColor}
+                onColorChange={setTitleColor}
+                align={titleAlign}
+                onAlignChange={setTitleAlign}
+                border={titleBorder}
+                onBorderChange={setTitleBorder}
                 disabled={busy || processing}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={"Top 5\nGoals"}
               />
-            </label>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={titleWrap}
+              <label className="title-field">
+                <textarea
+                  rows={3}
+                  value={title}
+                  disabled={busy || processing}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={"Top 5\nGoals"}
+                />
+              </label>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={titleWrap}
+                  disabled={busy || processing}
+                  onChange={(e) => setTitleWrap(e.target.checked)}
+                />
+                Wrap title to next line
+              </label>
+              <button
+                type="button"
                 disabled={busy || processing}
-                onChange={(e) => setTitleWrap(e.target.checked)}
-              />
-              Wrap title to next line
-            </label>
-            <label className="volume-row title-border-row">
-              <span>Title black border</span>
-              <input
-                type="range"
-                min={0}
-                max={12}
-                step={1}
-                value={titleBorder}
-                disabled={busy || processing}
-                onChange={(e) => setTitleBorder(Number(e.target.value))}
-              />
-              <span className="time">{titleBorder}px</span>
-            </label>
+                onClick={onCenterTitle}
+              >
+                Mitte
+              </button>
+            </div>
 
-            <button
-              type="button"
-              disabled={busy || processing}
-              onClick={onCenterTitle}
-            >
-              Mitte
-            </button>
+            <div className="ranking-editor-section">
+              <h2 className="section-title">Clips (play order #5 → #1)</h2>
+              <p className="hint">
+                First slot plays as #5, last as #1. Stack shows #1 on top. Drag
+                rows to reorder.
+              </p>
+              <ClipSlots
+                slots={slots}
+                onUpload={onUpload}
+                onBatchUpload={(files) => void onBatchUpload(files)}
+                onReorder={onReorder}
+                onCaptionChange={onCaptionChange}
+                onCaptionWrapChange={onCaptionWrapChange}
+                onClipVolumeChange={onClipVolumeChange}
+                disabled={!ready || busy || processing}
+              />
+            </div>
 
-            <AudioControls
-              muteClips={muteClips}
-              onMuteChange={setMuteClips}
-              bgmFilename={bgm?.filename ?? null}
-              onBgmUpload={onBgmUpload}
-              bgmVolume={bgmVolume}
-              onVolumeChange={setBgmVolume}
-              masterVolume={masterVolume}
-              onMasterVolumeChange={setMasterVolume}
-              disabled={!ready || busy || processing}
-            />
+            <div className="ranking-editor-section">
+              <AudioControls
+                muteClips={muteClips}
+                onMuteChange={setMuteClips}
+                bgmFilename={bgm?.filename ?? null}
+                onBgmUpload={onBgmUpload}
+                bgmVolume={bgmVolume}
+                onVolumeChange={setBgmVolume}
+                masterVolume={masterVolume}
+                onMasterVolumeChange={setMasterVolume}
+                disabled={!ready || busy || processing}
+              />
+            </div>
           </div>
 
           <RankingPreview
@@ -417,6 +447,11 @@ export default function RankingPage() {
             muteClips={muteClips}
             masterVolume={masterVolume}
             stageSizeRef={stageSizeRef}
+            fontFamilyCss={cssFamilyForTitleFont(titleFont)}
+            fontSizeCanvas={titleSize}
+            fontWeight={titleWeight}
+            color={titleColor}
+            align={titleAlign}
           />
         </div>
 

@@ -721,3 +721,43 @@ button:disabled {
   z-index: 4;
   pointer-events: none;
 }
+
+.title-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.title-toolbar select,
+.title-toolbar input[type="number"] {
+  max-width: 8rem;
+}
+
+.title-toolbar button.is-active {
+  outline: 1px solid var(--accent, #6ea8fe);
+}
+
+.title-align {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.ranking-editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
