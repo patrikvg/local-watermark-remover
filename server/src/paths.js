@@ -11,6 +11,7 @@ export const rankingDir = path.join(root, "ranking");
 export const rankingClipsDir = path.join(rankingDir, "clips");
 export const rankingBgmDir = path.join(rankingDir, "bgm");
 export const downloadsDir = path.join(root, "downloads");
+export const tiktokDir = path.join(root, "tiktok");
 
 export function ensureDirs() {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -18,4 +19,5 @@ export function ensureDirs() {
   fs.mkdirSync(rankingClipsDir, { recursive: true });
   fs.mkdirSync(rankingBgmDir, { recursive: true });
   fs.mkdirSync(downloadsDir, { recursive: true });
+  fs.mkdirSync(tiktokDir, { recursive: true });
 }

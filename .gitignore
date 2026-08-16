@@ -4,6 +4,7 @@ server/uploads/
 server/outputs/
 server/ranking/
 server/downloads/
+server/tiktok/
 *.log
 .DS_Store
 .superpowers/
