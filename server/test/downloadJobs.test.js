@@ -7,6 +7,7 @@ import {
   getDownloadJob,
   listPublicDownloadJob,
   cancelDownloadJob,
+  resolveDownloadOutput,
 } from "../src/downloadJobs.js";
 
 describe("downloadJobs", () => {
@@ -40,7 +41,7 @@ describe("downloadJobs", () => {
     expect(registerUpload).toHaveBeenCalled();
   });
 
-  it("cancel stops a running job", async () => {
+  it("cancel stops a running job and removes all job-prefixed files", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dl-job-"));
     let release;
     const gate = new Promise((r) => {
@@ -57,10 +58,46 @@ describe("downloadJobs", () => {
       },
     });
 
+    const partial = path.join(dir, `${job.id}.webm.part`);
+    const intermediate = path.join(dir, `${job.id}.f137.mp4`);
+    const unrelated = path.join(dir, "unrelated.mp4");
+    fs.writeFileSync(partial, "partial");
+    fs.writeFileSync(intermediate, "intermediate");
+    fs.writeFileSync(unrelated, "keep");
+
     cancelDownloadJob(job.id);
+    expect(job.proc.kill).toHaveBeenCalled();
+    expect(fs.existsSync(partial)).toBe(false);
+    expect(fs.existsSync(intermediate)).toBe(false);
+    expect(fs.existsSync(unrelated)).toBe(true);
+
     release();
     await vi.waitFor(() => {
       expect(getDownloadJob(job.id).status).toBe("cancelled");
+    });
+  });
+
+  it("resolves the actual output and prefers mp4 when multiple files exist", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dl-job-"));
+    const job = { id: "job-1", downloadsDir: dir };
+    fs.writeFileSync(path.join(dir, "job-1.webm"), "webm");
+    fs.writeFileSync(path.join(dir, "job-1.mp4"), "mp4");
+    fs.writeFileSync(path.join(dir, "other.mp4"), "other");
+
+    expect(resolveDownloadOutput(job)).toEqual({
+      outputPath: path.join(dir, "job-1.mp4"),
+      outputName: "job-1.mp4",
+    });
+  });
+
+  it("resolves a non-mp4 output when it is the only completed file", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dl-job-"));
+    const job = { id: "job-2", downloadsDir: dir };
+    fs.writeFileSync(path.join(dir, "job-2.webm"), "webm");
+
+    expect(resolveDownloadOutput(job)).toEqual({
+      outputPath: path.join(dir, "job-2.webm"),
+      outputName: "job-2.webm",
     });
   });
 });

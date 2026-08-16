@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import { fitDelogoRegion } from "./box.js";
+import { safeDownloadFilename } from "./downloadFilename.js";
 import { parseDownloadUrl } from "./downloadUrl.js";
 import {
   cancelDownloadJob,
@@ -64,13 +65,6 @@ async function refreshEnv() {
   if (binaries.ffmpeg) {
     cachedEncoder = await pickEncoder();
   }
-}
-
-function safeDownloadFilename(value) {
-  const safe = String(value || "video")
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
-    .slice(0, 80);
-  return safe.toLowerCase().endsWith(".mp4") ? safe : `${safe}.mp4`;
 }
 
 async function registerDownloadedUpload({ path: filePath, filename, title }) {

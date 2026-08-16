@@ -30,6 +30,14 @@ export function parseDownloadUrl(raw) {
     host.endsWith(".youtube.com") ||
     host.endsWith(".youtu.be")
   ) {
+    const isYoutubeCom =
+      host === "youtube.com" || host.endsWith(".youtube.com");
+    if (
+      isYoutubeCom &&
+      /^\/(?:playlist|channel|user)(?:\/|$)/i.test(parsed.pathname)
+    ) {
+      return { ok: false, error: "A YouTube video URL is required" };
+    }
     return { ok: true, url: parsed.toString(), platform: "youtube" };
   }
 

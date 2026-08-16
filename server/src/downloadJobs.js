@@ -24,6 +24,37 @@ export function listPublicDownloadJob(job) {
   };
 }
 
+function removeDownloadFiles(job) {
+  let names;
+  try {
+    names = fs.readdirSync(job.downloadsDir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (!name.startsWith(job.id)) continue;
+    try {
+      fs.unlinkSync(path.join(job.downloadsDir, name));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function resolveDownloadOutput(job) {
+  const names = fs
+    .readdirSync(job.downloadsDir)
+    .filter((name) => name.startsWith(`${job.id}.`))
+    .sort();
+  const outputName =
+    names.find((name) => name.toLowerCase().endsWith(".mp4")) ?? names[0];
+  if (!outputName) return null;
+  return {
+    outputPath: path.join(job.downloadsDir, outputName),
+    outputName,
+  };
+}
+
 async function defaultRunDownload(job, onProgress) {
   const template = path.join(job.downloadsDir, `${job.id}.%(ext)s`);
   const args = buildDownloadArgs({ url: job.url, outputTemplate: template });
@@ -51,13 +82,13 @@ async function defaultRunDownload(job, onProgress) {
         return;
       }
       if (code === 0) {
-        const mp4 = path.join(job.downloadsDir, `${job.id}.mp4`);
-        if (!fs.existsSync(mp4)) {
+        const output = resolveDownloadOutput(job);
+        if (!output) {
           reject(new Error("Download finished but output file missing"));
           return;
         }
-        job.outputPath = mp4;
-        job.outputName = `${job.id}.mp4`;
+        job.outputPath = output.outputPath;
+        job.outputName = output.outputName;
         onProgress(1);
         resolve();
         return;
@@ -132,12 +163,6 @@ export function cancelDownloadJob(id) {
       /* ignore */
     }
   }
-  if (job.outputPath && fs.existsSync(job.outputPath)) {
-    try {
-      fs.unlinkSync(job.outputPath);
-    } catch {
-      /* ignore */
-    }
-  }
+  removeDownloadFiles(job);
   return job;
 }

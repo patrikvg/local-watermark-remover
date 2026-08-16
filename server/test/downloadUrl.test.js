@@ -15,6 +15,12 @@ describe("parseDownloadUrl", () => {
       ok: true,
       platform: "youtube",
     });
+    expect(
+      parseDownloadUrl("https://www.youtube.com/shorts/dQw4w9WgXcQ")
+    ).toMatchObject({
+      ok: true,
+      platform: "youtube",
+    });
   });
 
   it("accepts tiktok URLs", () => {
@@ -31,5 +37,17 @@ describe("parseDownloadUrl", () => {
     expect(parseDownloadUrl("https://instagram.com/reel/abc").ok).toBe(false);
     expect(parseDownloadUrl("not-a-url").ok).toBe(false);
     expect(parseDownloadUrl("").ok).toBe(false);
+  });
+
+  it("rejects identifiable non-video YouTube URL shapes", () => {
+    expect(
+      parseDownloadUrl("https://www.youtube.com/playlist?list=PL123").ok
+    ).toBe(false);
+    expect(
+      parseDownloadUrl("https://www.youtube.com/channel/UC123").ok
+    ).toBe(false);
+    expect(parseDownloadUrl("https://www.youtube.com/user/example").ok).toBe(
+      false
+    );
   });
 });
