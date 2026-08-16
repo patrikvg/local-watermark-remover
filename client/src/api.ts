@@ -143,6 +143,48 @@ export function downloadFileUrl(jobId: string): string {
   return `/api/download/${jobId}/file`;
 }
 
+export type TiktokJobStatus = {
+  id: string;
+  status: "queued" | "running" | "done" | "error" | "cancelled";
+  progress: number;
+  error: string | null;
+  outputName: string | null;
+  uploadId: string | null;
+  filename: string | null;
+};
+
+export async function uploadTiktokConvert(file: File): Promise<{
+  jobId: string;
+  width: number;
+  height: number;
+  duration: number;
+  filename: string;
+}> {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch("/api/tiktok/upload", { method: "POST", body });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function getTiktokJob(jobId: string): Promise<TiktokJobStatus> {
+  const res = await fetch(`/api/tiktok/${jobId}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function cancelTiktokJob(
+  jobId: string
+): Promise<TiktokJobStatus> {
+  const res = await fetch(`/api/tiktok/${jobId}/cancel`, { method: "POST" });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export function tiktokFileUrl(jobId: string): string {
+  return `/api/tiktok/${jobId}/file`;
+}
+
 export async function getUpload(id: string): Promise<UploadResult> {
   const res = await fetch(`/api/uploads/${id}`);
   if (!res.ok) throw new Error(await readError(res));
