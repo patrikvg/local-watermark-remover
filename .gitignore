@@ -1,0 +1,7 @@
+node_modules/
+dist/
+server/uploads/
+server/outputs/
+*.log
+.DS_Store
+.superpowers/
