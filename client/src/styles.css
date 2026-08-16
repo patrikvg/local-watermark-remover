@@ -680,7 +680,6 @@ button:disabled {
 
 .ranking-title.is-nowrap {
   white-space: nowrap;
-  width: max-content;
   overflow-wrap: normal;
 }
 

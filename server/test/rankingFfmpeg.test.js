@@ -191,6 +191,26 @@ describe("buildRankingArgs", () => {
     expect(y).toBe(rankY + Math.round((rankSize - textH) / 2));
   });
 
+  it("centers nowrap title within titleWidth box", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1, 1, 1, 1, 1],
+      title: "Short Title",
+      titlePos: { x: 50, y: 40 },
+      titleWidth: 400,
+      titleWrap: false,
+      titleAlign: "center",
+      muteClips: false,
+      bgmPath: null,
+      bgmVolume: 0.2,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toMatch(/50\+\(400-tw\)\/2/);
+    expect(fc).toContain("text='Short Title'");
+  });
+
   it("applies title font size color file and center align", () => {
     const args = buildRankingArgs({
       clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],

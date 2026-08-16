@@ -81,7 +81,7 @@ export default function TitleOverlay({
         style={{
           left: pos.x,
           top: pos.y,
-          width: wrap ? boxWidth : undefined,
+          width: boxWidth,
           fontFamily: fontFamilyCss,
           fontSize: fontSizeCanvas * s,
           fontWeight: fontWeight === "bold" ? 700 : 400,
