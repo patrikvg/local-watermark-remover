@@ -14,19 +14,17 @@ import {
 import AudioControls from "../components/ranking/AudioControls";
 import ClipSlots, { type SlotItem } from "../components/ranking/ClipSlots";
 import RankingPreview from "../components/ranking/RankingPreview";
-
-function toCanvasPos(
-  pos: { x: number; y: number },
-  stageW: number,
-  stageH: number
-) {
-  return {
-    x: Math.round((pos.x / stageW) * 1080),
-    y: Math.round((pos.y / stageH) * 1920),
-  };
-}
+import {
+  CANVAS,
+  estimateTitleBoxSize,
+  centerTitleX,
+  centerTitleY,
+  toCanvasLen,
+  toCanvasPos,
+} from "../rankingLayout";
 
 const EMPTY_SLOTS: SlotItem[] = [null, null, null, null, null];
+const DEFAULT_CAPTION_WIDTH = 110;
 
 export default function RankingPage() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -35,6 +33,8 @@ export default function RankingPage() {
   const [title, setTitle] = useState("My Top 5");
   const [titlePos, setTitlePos] = useState({ x: 48, y: 72 });
   const [titleBorder, setTitleBorder] = useState(3);
+  const [titleWidth, setTitleWidth] = useState(210);
+  const [titleWrap, setTitleWrap] = useState(true);
   const [ranksPos, setRanksPos] = useState({ x: 16, y: 160 });
   const stageSizeRef = useRef({ width: 270, height: 480 });
   const slotsRef = useRef(slots);
@@ -47,6 +47,7 @@ export default function RankingPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [job, setJob] = useState<JobStatus | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const autoDownloadFor = useRef<string | null>(null);
 
   const ready = Boolean(health?.ok);
   const processing = job?.status === "queued" || job?.status === "running";
@@ -78,7 +79,7 @@ export default function RankingPage() {
         const next = await getRankingJob(jobId);
         setJob(next);
         if (next.status === "done") {
-          setMessage("Done — download your ranking Short.");
+          setMessage("Done — download started.");
           setBusy(false);
         } else if (next.status === "error") {
           setMessage(next.error || "Export failed");
@@ -94,6 +95,18 @@ export default function RankingPage() {
     }, 500);
     return () => clearInterval(timer);
   }, [jobId, processing]);
+
+  useEffect(() => {
+    if (job?.status !== "done" || !jobId) return;
+    if (autoDownloadFor.current === jobId) return;
+    autoDownloadFor.current = jobId;
+    const a = document.createElement("a");
+    a.href = rankingDownloadUrl(jobId);
+    a.download = job.outputName ? `ranking-${job.outputName}` : "ranking.mp4";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, [job?.status, job?.outputName, jobId]);
 
   const percent = useMemo(
     () => Math.round((job?.progress ?? 0) * 100),
@@ -113,6 +126,8 @@ export default function RankingPage() {
           objectUrl,
           caption: old?.caption ?? "",
           volume: old?.volume ?? 1,
+          wrap: old?.wrap ?? true,
+          captionWidth: old?.captionWidth ?? DEFAULT_CAPTION_WIDTH,
         };
         return next;
       });
@@ -179,6 +194,26 @@ export default function RankingPage() {
     });
   }
 
+  function onCaptionWrapChange(index: number, wrap: boolean) {
+    setSlots((prev) => {
+      const next = [...prev];
+      const slot = next[index];
+      if (!slot) return prev;
+      next[index] = { ...slot, wrap };
+      return next;
+    });
+  }
+
+  function onCaptionWidthChange(index: number, captionWidth: number) {
+    setSlots((prev) => {
+      const next = [...prev];
+      const slot = next[index];
+      if (!slot) return prev;
+      next[index] = { ...slot, captionWidth };
+      return next;
+    });
+  }
+
   function onClipVolumeChange(index: number, volume: number) {
     setSlots((prev) => {
       const next = [...prev];
@@ -215,14 +250,19 @@ export default function RankingPage() {
     setMessage("Exporting…");
     setJob(null);
     setJobId(null);
+    autoDownloadFor.current = null;
     try {
       const { jobId: id } = await startRankingExport({
         clipIds,
         title: title.trim(),
-        titlePos: toCanvasPos(titlePos, width, height),
+        titlePos: toCanvasPos(titlePos, width),
         titleBorder,
-        ranksPos: toCanvasPos(ranksPos, width, height),
+        titleWidth: toCanvasLen(titleWidth, width),
+        titleWrap,
+        ranksPos: toCanvasPos(ranksPos, width),
         captions: slots.map((s) => s!.caption),
+        captionWidths: slots.map((s) => toCanvasLen(s!.captionWidth, width)),
+        captionWraps: slots.map((s) => s!.wrap),
         clipVolumes: slots.map((s) => s!.volume),
         masterVolume,
         muteClips,
@@ -255,6 +295,17 @@ export default function RankingPage() {
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  function onCenterTitle() {
+    const { width: stageW, height: stageH } = stageSizeRef.current;
+    if (stageW <= 0 || stageH <= 0) return;
+    const scale = stageW / CANVAS.width;
+    const box = estimateTitleBoxSize(title, titleWidth, titleWrap, scale);
+    setTitlePos({
+      x: centerTitleX(stageW, box.width),
+      y: centerTitleY(stageH, box.height),
+    });
   }
 
   return (
@@ -292,6 +343,7 @@ export default function RankingPage() {
               onBatchUpload={(files) => void onBatchUpload(files)}
               onReorder={onReorder}
               onCaptionChange={onCaptionChange}
+              onCaptionWrapChange={onCaptionWrapChange}
               onClipVolumeChange={onClipVolumeChange}
               disabled={!ready || busy || processing}
             />
@@ -306,6 +358,15 @@ export default function RankingPage() {
                 placeholder={"Top 5\nGoals"}
               />
             </label>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={titleWrap}
+                disabled={busy || processing}
+                onChange={(e) => setTitleWrap(e.target.checked)}
+              />
+              Wrap title to next line
+            </label>
             <label className="volume-row title-border-row">
               <span>Title black border</span>
               <input
@@ -319,6 +380,14 @@ export default function RankingPage() {
               />
               <span className="time">{titleBorder}px</span>
             </label>
+
+            <button
+              type="button"
+              disabled={busy || processing}
+              onClick={onCenterTitle}
+            >
+              Mitte
+            </button>
 
             <AudioControls
               muteClips={muteClips}
@@ -339,8 +408,12 @@ export default function RankingPage() {
             titlePos={titlePos}
             onTitlePosChange={setTitlePos}
             titleBorder={titleBorder}
+            titleWidth={titleWidth}
+            onTitleWidthChange={setTitleWidth}
+            titleWrap={titleWrap}
             ranksPos={ranksPos}
             onRanksPosChange={setRanksPos}
+            onCaptionWidthChange={onCaptionWidthChange}
             muteClips={muteClips}
             masterVolume={masterVolume}
             stageSizeRef={stageSizeRef}
@@ -365,11 +438,11 @@ export default function RankingPage() {
           </button>
           {job?.status === "done" && jobId && (
             <a
-              className="primary link-btn"
+              className="link-btn"
               href={rankingDownloadUrl(jobId)}
               download
             >
-              Download
+              Download again
             </a>
           )}
         </div>
