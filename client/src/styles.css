@@ -121,6 +121,28 @@ body {
   width: 100%;
   max-height: 70vh;
   background: #000;
+  object-fit: contain;
+  vertical-align: top;
+}
+
+.scrubber {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.scrubber input[type="range"] {
+  flex: 1;
+}
+
+.scrubber .time {
+  color: var(--muted);
+  font-size: 0.85rem;
+  min-width: 7rem;
+  text-align: right;
 }
 
 .overlay-layer {

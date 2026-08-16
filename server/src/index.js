@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import { normalizeBox, toDelogoParams } from "./box.js";
+import { fitDelogoRegion } from "./box.js";
 import {
   cancelJob,
   checkBinaries,
@@ -107,27 +107,25 @@ app.post("/api/process", async (request, reply) => {
     return reply.code(400).send({ error: "box is required" });
   }
 
-  let normalized;
+  let delogo;
   try {
-    normalized = normalizeBox(box, upload.width, upload.height);
+    delogo = fitDelogoRegion(box, upload.width, upload.height, 8);
   } catch (err) {
     return reply.code(400).send({
       error: err instanceof Error ? err.message : "Invalid box",
     });
   }
 
-  const expanded = toDelogoParams(normalized, 8);
-  const delogo = {
-    x: Math.max(0, Math.min(expanded.x, upload.width - 2)),
-    y: Math.max(0, Math.min(expanded.y, upload.height - 2)),
-    w: Math.max(2, Math.min(expanded.w, upload.width - Math.max(0, expanded.x))),
-    h: Math.max(2, Math.min(expanded.h, upload.height - Math.max(0, expanded.y))),
-    show: 0,
-  };
-  delogo.w = delogo.w % 2 === 0 ? delogo.w : delogo.w - 1;
-  delogo.h = delogo.h % 2 === 0 ? delogo.h : delogo.h - 1;
-  delogo.x = delogo.x % 2 === 0 ? delogo.x : delogo.x - 1;
-  delogo.y = delogo.y % 2 === 0 ? delogo.y : delogo.y - 1;
+  request.log.info(
+    {
+      uploadId,
+      video: { w: upload.width, h: upload.height },
+      box,
+      delogo,
+    },
+    "starting delogo job"
+  );
+
   const job = createAndStartJob({
     inputPath: upload.path,
     delogo,
@@ -135,7 +133,7 @@ app.post("/api/process", async (request, reply) => {
     preferredEncoder: cachedEncoder,
   });
 
-  return { jobId: job.id };
+  return { jobId: job.id, delogo };
 });
 
 app.get("/api/jobs/:id", async (request, reply) => {

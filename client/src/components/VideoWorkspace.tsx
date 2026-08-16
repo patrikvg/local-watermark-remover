@@ -11,11 +11,12 @@ import {
 } from "../api";
 import RegionBox from "./RegionBox";
 
+/** Picture box inside the <video> element (object-fit: contain, no controls). */
 function getContentRect(video: HTMLVideoElement) {
   const rect = video.getBoundingClientRect();
   const { videoWidth, videoHeight } = video;
   if (!videoWidth || !videoHeight || !rect.width || !rect.height) {
-    return { left: 0, top: 0, width: rect.width, height: rect.height };
+    return { left: 0, top: 0, width: 0, height: 0 };
   }
   const scale = Math.min(rect.width / videoWidth, rect.height / videoHeight);
   const width = videoWidth * scale;
@@ -31,6 +32,9 @@ function scaleBoxToVideo(
   videoWidth: number,
   videoHeight: number
 ): Box {
+  if (!display.width || !display.height) {
+    throw new Error("Preview size not ready — wait a moment and redraw the box.");
+  }
   const sx = videoWidth / display.width;
   const sy = videoHeight / display.height;
   return {
@@ -56,6 +60,8 @@ export default function VideoWorkspace({ ready }: Props) {
     width: 0,
     height: 0,
   });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [job, setJob] = useState<JobStatus | null>(null);
@@ -77,10 +83,12 @@ export default function VideoWorkspace({ ready }: Props) {
     const ro = new ResizeObserver(update);
     ro.observe(video);
     video.addEventListener("loadedmetadata", update);
+    video.addEventListener("loadeddata", update);
     window.addEventListener("resize", update);
     return () => {
       ro.disconnect();
       video.removeEventListener("loadedmetadata", update);
+      video.removeEventListener("loadeddata", update);
       window.removeEventListener("resize", update);
     };
   }, [fileUrl]);
@@ -114,6 +122,20 @@ export default function VideoWorkspace({ ready }: Props) {
     [job?.progress]
   );
 
+  const videoPixels = useMemo(() => {
+    if (!box || !content.width || !upload) return null;
+    try {
+      return scaleBoxToVideo(
+        box,
+        { width: content.width, height: content.height },
+        upload.width,
+        upload.height
+      );
+    } catch {
+      return null;
+    }
+  }, [box, content.height, content.width, upload]);
+
   async function onFile(file: File | null) {
     if (!file) return;
     setMessage(null);
@@ -121,6 +143,8 @@ export default function VideoWorkspace({ ready }: Props) {
     setJobId(null);
     setBox(null);
     setUpload(null);
+    setCurrentTime(0);
+    setDuration(0);
     if (fileUrl) URL.revokeObjectURL(fileUrl);
     setFileUrl(URL.createObjectURL(file));
     setBusy(true);
@@ -138,14 +162,23 @@ export default function VideoWorkspace({ ready }: Props) {
   }
 
   async function onProcess() {
-    if (!upload || !box || !videoRef.current) return;
-    const video = videoRef.current;
-    const videoBox = scaleBoxToVideo(
-      box,
-      { width: content.width, height: content.height },
-      video.videoWidth || upload.width,
-      video.videoHeight || upload.height
-    );
+    if (!upload || !box) return;
+    if (!content.width || !content.height) {
+      setMessage("Preview not ready — wait a second, then redraw the box.");
+      return;
+    }
+    let videoBox: Box;
+    try {
+      videoBox = scaleBoxToVideo(
+        box,
+        { width: content.width, height: content.height },
+        upload.width,
+        upload.height
+      );
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+      return;
+    }
     setBusy(true);
     setMessage("Processing…");
     try {
@@ -203,7 +236,18 @@ export default function VideoWorkspace({ ready }: Props) {
       {fileUrl && (
         <div className="stage">
           <div className="video-wrap">
-            <video ref={videoRef} src={fileUrl} controls playsInline />
+            <video
+              ref={videoRef}
+              src={fileUrl}
+              playsInline
+              // No native controls — they skew the letterbox math for the box overlay.
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                setDuration(v.duration || 0);
+                setContent(getContentRect(v));
+              }}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            />
             <div
               className="overlay-layer"
               style={{
@@ -216,9 +260,37 @@ export default function VideoWorkspace({ ready }: Props) {
               <RegionBox
                 box={box}
                 onChange={setBox}
-                disabled={busy || processing || !upload}
+                disabled={busy || processing || !upload || content.width < 1}
               />
             </div>
+          </div>
+          <div className="scrubber">
+            <button
+              type="button"
+              onClick={() => {
+                const v = videoRef.current;
+                if (!v) return;
+                if (v.paused) void v.play();
+                else v.pause();
+              }}
+            >
+              Play / Pause
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.01}
+              value={Math.min(currentTime, duration || 0)}
+              onChange={(e) => {
+                const t = Number(e.target.value);
+                setCurrentTime(t);
+                if (videoRef.current) videoRef.current.currentTime = t;
+              }}
+            />
+            <span className="time">
+              {currentTime.toFixed(1)}s / {(duration || 0).toFixed(1)}s
+            </span>
           </div>
         </div>
       )}
@@ -227,7 +299,14 @@ export default function VideoWorkspace({ ready }: Props) {
         <button
           type="button"
           className="primary"
-          disabled={!ready || !upload || !box || busy || processing}
+          disabled={
+            !ready ||
+            !upload ||
+            !box ||
+            busy ||
+            processing ||
+            content.width < 1
+          }
           onClick={() => void onProcess()}
         >
           Remove watermark
@@ -256,6 +335,8 @@ export default function VideoWorkspace({ ready }: Props) {
       {box && (
         <p className="meta">
           Box {Math.round(box.width)}×{Math.round(box.height)}px (display)
+          {videoPixels &&
+            ` → ${Math.round(videoPixels.width)}×${Math.round(videoPixels.height)}px in video`}
         </p>
       )}
       {message && <p className="message">{message}</p>}

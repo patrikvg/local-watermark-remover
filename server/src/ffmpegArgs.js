@@ -12,7 +12,8 @@ export function buildDelogoArgs({ input, output, delogo, encoder }) {
     args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", "18");
   }
 
-  args.push("-c:a", "copy", output);
+  // Re-encode audio so MKV/Opus/AV1 sources mux cleanly into MP4.
+  args.push("-c:a", "aac", "-b:a", "192k", output);
   return args;
 }
 

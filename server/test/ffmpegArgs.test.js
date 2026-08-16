@@ -15,7 +15,7 @@ describe("buildDelogoArgs", () => {
     );
     expect(args).toContain("h264_nvenc");
     expect(args).toContain("-c:a");
-    expect(args).toContain("copy");
+    expect(args).toContain("aac");
   });
 
   it("falls back to libx264", () => {

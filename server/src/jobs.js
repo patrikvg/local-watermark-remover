@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { buildDelogoArgs } from "./ffmpegArgs.js";
+import { formatFfmpegError } from "./box.js";
 import { outputsDir } from "./paths.js";
 
 /** @type {Map<string, object>} */
@@ -147,7 +148,7 @@ function runFfmpeg(job, encoder) {
         new Error(
           signal
             ? `ffmpeg killed (${signal})`
-            : stderr.slice(-800) || `ffmpeg exited ${code}`
+            : formatFfmpegError(stderr) || `ffmpeg exited ${code}`
         )
       );
     });
