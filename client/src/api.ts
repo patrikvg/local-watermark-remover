@@ -76,3 +76,67 @@ export async function cancelJob(jobId: string): Promise<JobStatus> {
 export function downloadUrl(jobId: string): string {
   return `/api/jobs/${jobId}/download`;
 }
+
+export type RankingClip = {
+  id: string;
+  filename: string;
+  duration: number;
+  width: number;
+  height: number;
+};
+
+export type RankingBgm = {
+  id: string;
+  filename: string;
+};
+
+export async function uploadRankingClip(file: File): Promise<RankingClip> {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch("/api/ranking/clips", { method: "POST", body });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function uploadRankingBgm(file: File): Promise<RankingBgm> {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch("/api/ranking/bgm", { method: "POST", body });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function startRankingExport(body: {
+  clipIds: string[];
+  title: string;
+  titlePos: { x: number; y: number };
+  muteClips: boolean;
+  bgmId?: string | null;
+  bgmVolume: number;
+}): Promise<{ jobId: string }> {
+  const res = await fetch("/api/ranking/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function getRankingJob(jobId: string): Promise<JobStatus> {
+  const res = await fetch(`/api/ranking/jobs/${jobId}`);
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export async function cancelRankingJob(jobId: string): Promise<JobStatus> {
+  const res = await fetch(`/api/ranking/jobs/${jobId}/cancel`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.json();
+}
+
+export function rankingDownloadUrl(jobId: string): string {
+  return `/api/ranking/jobs/${jobId}/download`;
+}
