@@ -111,6 +111,11 @@ export async function startRankingExport(body: {
   clipIds: string[];
   title: string;
   titlePos: { x: number; y: number };
+  titleFont?: "arial" | "impact" | "segoe" | "georgia" | "consolas";
+  titleSize?: number;
+  titleWeight?: "regular" | "bold";
+  titleColor?: string;
+  titleAlign?: "left" | "center" | "right";
   titleBorder?: number;
   titleWidth?: number;
   titleWrap?: boolean;

@@ -290,6 +290,11 @@ app.post("/api/ranking/export", async (request, reply) => {
     clipIds,
     title,
     titlePos,
+    titleFont,
+    titleSize,
+    titleWeight,
+    titleColor,
+    titleAlign,
     titleBorder,
     ranksPos,
     captions,
@@ -303,6 +308,36 @@ app.post("/api/ranking/export", async (request, reply) => {
     captionWidths,
     captionWraps,
   } = body;
+
+  const validTitleFonts = new Set([
+    "arial",
+    "impact",
+    "segoe",
+    "georgia",
+    "consolas",
+  ]);
+  const validTitleWeights = new Set(["regular", "bold"]);
+  const validTitleAligns = new Set(["left", "center", "right"]);
+  const normalizedTitleFont = validTitleFonts.has(titleFont)
+    ? titleFont
+    : "arial";
+  const normalizedTitleWeight = validTitleWeights.has(titleWeight)
+    ? titleWeight
+    : "bold";
+  const normalizedTitleAlign = validTitleAligns.has(titleAlign)
+    ? titleAlign
+    : "left";
+  const normalizedTitleSize =
+    Number.isFinite(titleSize) && titleSize >= 12 && titleSize <= 200
+      ? titleSize
+      : 64;
+  const titleColorRaw =
+    typeof titleColor === "string" ? titleColor.trim() : "";
+  const normalizedTitleColor = /^#?[0-9a-fA-F]{6}$/.test(titleColorRaw)
+    ? titleColorRaw.startsWith("#")
+      ? titleColorRaw
+      : `#${titleColorRaw}`
+    : "#ffffff";
 
   if (!Array.isArray(clipIds) || clipIds.length !== 5) {
     return reply.code(400).send({ error: "Exactly 5 clipIds are required" });
@@ -350,6 +385,11 @@ app.post("/api/ranking/export", async (request, reply) => {
     hasAudio: clips.map((c) => Boolean(c.hasAudio)),
     title,
     titlePos,
+    titleFont: normalizedTitleFont,
+    titleSize: normalizedTitleSize,
+    titleWeight: normalizedTitleWeight,
+    titleColor: normalizedTitleColor,
+    titleAlign: normalizedTitleAlign,
     titleBorder: titleBorder ?? 3,
     titleWidth: titleWidth ?? 900,
     titleWrap: titleWrap !== false,
