@@ -16,8 +16,8 @@ describe("normalizeBox", () => {
 });
 
 describe("toDelogoParams", () => {
-  it("maps box to even integers with band", () => {
+  it("maps box to even integers and expands edges", () => {
     const p = toDelogoParams({ x: 101, y: 51, width: 120, height: 40 }, 8);
-    expect(p).toEqual({ x: 100, y: 50, w: 120, h: 40, band: 8, show: 1 });
+    expect(p).toEqual({ x: 92, y: 42, w: 136, h: 56, show: 0 });
   });
 });

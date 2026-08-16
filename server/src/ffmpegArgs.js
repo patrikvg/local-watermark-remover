@@ -1,5 +1,5 @@
 export function buildDelogoFilter(d) {
-  return `delogo=x=${d.x}:y=${d.y}:w=${d.w}:h=${d.h}:band=${d.band}:show=0`;
+  return `delogo=x=${d.x}:y=${d.y}:w=${d.w}:h=${d.h}:show=0`;
 }
 
 export function buildDelogoArgs({ input, output, delogo, encoder }) {

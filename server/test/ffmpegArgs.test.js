@@ -6,7 +6,7 @@ describe("buildDelogoArgs", () => {
     const args = buildDelogoArgs({
       input: "in.mp4",
       output: "out.mp4",
-      delogo: { x: 10, y: 20, w: 100, h: 40, band: 8, show: 1 },
+      delogo: { x: 10, y: 20, w: 100, h: 40, show: 0 },
       encoder: "h264_nvenc",
     });
     expect(args).toContain("-vf");
@@ -22,7 +22,7 @@ describe("buildDelogoArgs", () => {
     const args = buildDelogoArgs({
       input: "in.mp4",
       output: "out.mp4",
-      delogo: { x: 0, y: 0, w: 32, h: 32, band: 4, show: 1 },
+      delogo: { x: 0, y: 0, w: 32, h: 32, show: 0 },
       encoder: "libx264",
     });
     expect(args).toContain("libx264");

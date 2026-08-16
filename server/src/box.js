@@ -25,14 +25,14 @@ export function normalizeBox(box, videoWidth, videoHeight) {
   };
 }
 
-export function toDelogoParams(box, band = 8) {
+export function toDelogoParams(box, expand = 8) {
+  const pad = Math.max(0, Math.round(expand));
   return {
-    x: even(box.x),
-    y: even(box.y),
-    w: even(box.width),
-    h: even(box.height),
-    band: Math.max(1, Math.round(band)),
-    show: 1,
+    x: even(Math.max(0, box.x - pad)),
+    y: even(Math.max(0, box.y - pad)),
+    w: even(box.width + pad * 2),
+    h: even(box.height + pad * 2),
+    show: 0,
   };
 }
 
