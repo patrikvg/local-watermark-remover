@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import {
   CHAR_WIDTH_RATIO,
-  TITLE_FONT,
   TITLE_LINE_SPACING,
   TITLE_MIN_W,
   TITLE_SNAP_THRESHOLD,
@@ -19,6 +18,11 @@ type Props = {
   wrap: boolean;
   scale: number;
   stageWidth: number;
+  fontFamilyCss: string;
+  fontSizeCanvas: number;
+  fontWeight: "regular" | "bold";
+  color: string;
+  align: "left" | "center" | "right";
 };
 
 export default function TitleOverlay({
@@ -31,6 +35,11 @@ export default function TitleOverlay({
   wrap,
   scale,
   stageWidth,
+  fontFamilyCss,
+  fontSizeCanvas,
+  fontWeight,
+  color,
+  align,
 }: Props) {
   const dragging = useRef(false);
   const resizing = useRef(false);
@@ -45,12 +54,17 @@ export default function TitleOverlay({
   const s = Math.max(0.05, scale);
   const bw = Math.max(0, borderWidth) * s;
   const canvasWidth = boxWidth / s;
-  const display = wrapOverlayText(title || "Title", canvasWidth, TITLE_FONT, wrap);
+  const display = wrapOverlayText(
+    title || "Title",
+    canvasWidth,
+    fontSizeCanvas,
+    wrap
+  );
   const effectiveW = wrap
     ? boxWidth
     : Math.max(
         TITLE_MIN_W,
-        String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO * s
+        String(display).length * fontSizeCanvas * CHAR_WIDTH_RATIO * s
       );
 
   return (
@@ -68,8 +82,12 @@ export default function TitleOverlay({
           left: pos.x,
           top: pos.y,
           width: wrap ? boxWidth : undefined,
-          fontSize: TITLE_FONT * s,
-          lineHeight: `${(TITLE_FONT + TITLE_LINE_SPACING) * s}px`,
+          fontFamily: fontFamilyCss,
+          fontSize: fontSizeCanvas * s,
+          fontWeight: fontWeight === "bold" ? 700 : 400,
+          color,
+          textAlign: align,
+          lineHeight: `${(fontSizeCanvas + TITLE_LINE_SPACING) * s}px`,
           WebkitTextStroke: bw > 0 ? `${bw}px black` : undefined,
           paintOrder: "stroke fill",
         }}

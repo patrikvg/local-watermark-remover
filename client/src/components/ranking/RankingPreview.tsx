@@ -7,11 +7,13 @@ import {
   CAPTION_X_RATIO,
   RANK_FONT,
   RANK_LINE_HEIGHT,
+  TITLE_FONT,
   captionFontSize,
   centerAlong,
   overlayTextHeight,
   wrapOverlayText,
 } from "../../rankingLayout";
+import { cssFamilyForTitleFont } from "../../titleFonts";
 
 type Props = {
   slots: SlotItem[];
@@ -28,6 +30,11 @@ type Props = {
   muteClips: boolean;
   masterVolume: number;
   stageSizeRef: MutableRefObject<{ width: number; height: number }>;
+  fontFamilyCss?: string;
+  fontSizeCanvas?: number;
+  fontWeight?: "regular" | "bold";
+  color?: string;
+  align?: "left" | "center" | "right";
 };
 
 function rankForIndex(index: number) {
@@ -66,6 +73,11 @@ export default function RankingPreview({
   muteClips,
   masterVolume,
   stageSizeRef,
+  fontFamilyCss = cssFamilyForTitleFont("arial"),
+  fontSizeCanvas = TITLE_FONT,
+  fontWeight = "bold",
+  color = "#ffffff",
+  align = "left",
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -431,6 +443,11 @@ export default function RankingPreview({
             wrap={titleWrap}
             scale={scale}
             stageWidth={stageW}
+            fontFamilyCss={fontFamilyCss}
+            fontSizeCanvas={fontSizeCanvas}
+            fontWeight={fontWeight}
+            color={color}
+            align={align}
           />
           <div
             className={

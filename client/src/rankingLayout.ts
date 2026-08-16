@@ -101,15 +101,21 @@ export function estimateTitleBoxSize(
   title: string,
   boxWidthPreview: number,
   wrap: boolean,
-  scale: number
+  scale: number,
+  fontSizeCanvas = TITLE_FONT
 ) {
   const s = Math.max(0.05, scale);
   const canvasWidth = boxWidthPreview / s;
-  const display = wrapOverlayText(title || "Title", canvasWidth, TITLE_FONT, wrap);
+  const display = wrapOverlayText(
+    title || "Title",
+    canvasWidth,
+    fontSizeCanvas,
+    wrap
+  );
   const lines = Math.max(1, String(display).split("\n").length);
-  const heightCanvas = lines * (TITLE_FONT + TITLE_LINE_SPACING);
+  const heightCanvas = lines * (fontSizeCanvas + TITLE_LINE_SPACING);
   const estimatedPreviewW =
-    String(display).length * TITLE_FONT * CHAR_WIDTH_RATIO * s;
+    String(display).length * fontSizeCanvas * CHAR_WIDTH_RATIO * s;
   const width = wrap
     ? boxWidthPreview
     : Math.max(TITLE_MIN_W, estimatedPreviewW);
