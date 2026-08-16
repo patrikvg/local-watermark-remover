@@ -3,6 +3,7 @@ dist/
 server/uploads/
 server/outputs/
 server/ranking/
+server/downloads/
 *.log
 .DS_Store
 .superpowers/
