@@ -66,6 +66,13 @@ async function refreshEnv() {
   }
 }
 
+function safeDownloadFilename(value) {
+  const safe = String(value || "video")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .slice(0, 80);
+  return safe.toLowerCase().endsWith(".mp4") ? safe : `${safe}.mp4`;
+}
+
 async function registerDownloadedUpload({ path: filePath, filename, title }) {
   const id = randomUUID();
   let meta;
@@ -82,7 +89,7 @@ async function registerDownloadedUpload({ path: filePath, filename, title }) {
   uploads.set(id, {
     id,
     path: filePath,
-    filename: title ? `${title}.mp4` : filename,
+    filename: title ? safeDownloadFilename(title) : filename,
     ...meta,
   });
   return id;
@@ -238,9 +245,9 @@ app.post("/api/download/start", async (request, reply) => {
       error: "yt-dlp not found on PATH. Install yt-dlp and restart.",
     });
   }
-  if (!binaries.ffmpeg) {
+  if (!binaries.ffmpeg || !binaries.ffprobe) {
     return reply.code(503).send({
-      error: "FFmpeg not found on PATH (required to merge best video+audio).",
+      error: "FFmpeg/ffprobe not found on PATH. Install FFmpeg and restart.",
     });
   }
   const parsed = parseDownloadUrl(request.body?.url);
@@ -284,10 +291,7 @@ app.get("/api/download/:id/file", async (request, reply) => {
   if (!job.outputPath || !fs.existsSync(job.outputPath)) {
     return reply.code(404).send({ error: "Output missing" });
   }
-  const safe = String(job.title || job.outputName || "video")
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
-    .slice(0, 80);
-  const name = safe.toLowerCase().endsWith(".mp4") ? safe : `${safe}.mp4`;
+  const name = safeDownloadFilename(job.title || job.outputName);
   reply.header("Content-Disposition", `attachment; filename="${name}"`);
   return reply.send(fs.createReadStream(job.outputPath));
 });
