@@ -34,12 +34,15 @@ export default function RankingPage() {
   const [slots, setSlots] = useState<SlotItem[]>(EMPTY_SLOTS);
   const [title, setTitle] = useState("My Top 5");
   const [titlePos, setTitlePos] = useState({ x: 48, y: 72 });
+  const [titleBorder, setTitleBorder] = useState(3);
+  const [ranksPos, setRanksPos] = useState({ x: 16, y: 160 });
   const stageSizeRef = useRef({ width: 270, height: 480 });
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   const [muteClips, setMuteClips] = useState(false);
   const [bgm, setBgm] = useState<RankingBgm | null>(null);
   const [bgmVolume, setBgmVolume] = useState(0.25);
+  const [masterVolume, setMasterVolume] = useState(0.85);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [job, setJob] = useState<JobStatus | null>(null);
@@ -97,9 +100,7 @@ export default function RankingPage() {
     [job?.progress]
   );
 
-  async function onUpload(index: number, file: File) {
-    setMessage(null);
-    setBusy(true);
+  async function placeFile(index: number, file: File) {
     const objectUrl = URL.createObjectURL(file);
     try {
       const clip = await uploadRankingClip(file);
@@ -107,12 +108,52 @@ export default function RankingPage() {
         const next = [...prev];
         const old = next[index];
         if (old?.objectUrl) URL.revokeObjectURL(old.objectUrl);
-        next[index] = { clip, objectUrl };
+        next[index] = {
+          clip,
+          objectUrl,
+          caption: old?.caption ?? "",
+          volume: old?.volume ?? 1,
+        };
         return next;
       });
-      setMessage(`Slot #${5 - index}: ${clip.filename}`);
+      return clip.filename;
     } catch (err) {
       URL.revokeObjectURL(objectUrl);
+      throw err;
+    }
+  }
+
+  async function onUpload(index: number, file: File) {
+    setMessage(null);
+    setBusy(true);
+    try {
+      const name = await placeFile(index, file);
+      setMessage(`Slot #${5 - index}: ${name}`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onBatchUpload(files: File[]) {
+    setMessage(null);
+    setBusy(true);
+    try {
+      const emptyIndexes: number[] = [];
+      slots.forEach((s, i) => {
+        if (!s) emptyIndexes.push(i);
+      });
+      const targets =
+        emptyIndexes.length > 0
+          ? emptyIndexes
+          : [0, 1, 2, 3, 4].slice(0, files.length);
+      const used = Math.min(files.length, targets.length);
+      for (let i = 0; i < used; i++) {
+        await placeFile(targets[i], files[i]);
+      }
+      setMessage(`Loaded ${used} clip(s).`);
+    } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
@@ -124,6 +165,26 @@ export default function RankingPage() {
       const next = [...prev];
       const [item] = next.splice(from, 1);
       next.splice(to, 0, item);
+      return next;
+    });
+  }
+
+  function onCaptionChange(index: number, caption: string) {
+    setSlots((prev) => {
+      const next = [...prev];
+      const slot = next[index];
+      if (!slot) return prev;
+      next[index] = { ...slot, caption };
+      return next;
+    });
+  }
+
+  function onClipVolumeChange(index: number, volume: number) {
+    setSlots((prev) => {
+      const next = [...prev];
+      const slot = next[index];
+      if (!slot) return prev;
+      next[index] = { ...slot, volume };
       return next;
     });
   }
@@ -150,7 +211,6 @@ export default function RankingPage() {
       return;
     }
     const clipIds = slots.map((s) => s!.clip.id);
-    const canvasPos = toCanvasPos(titlePos, width, height);
     setBusy(true);
     setMessage("Exporting…");
     setJob(null);
@@ -159,7 +219,12 @@ export default function RankingPage() {
       const { jobId: id } = await startRankingExport({
         clipIds,
         title: title.trim(),
-        titlePos: canvasPos,
+        titlePos: toCanvasPos(titlePos, width, height),
+        titleBorder,
+        ranksPos: toCanvasPos(ranksPos, width, height),
+        captions: slots.map((s) => s!.caption),
+        clipVolumes: slots.map((s) => s!.volume),
+        masterVolume,
         muteClips,
         bgmId: bgm?.id ?? null,
         bgmVolume,
@@ -216,26 +281,43 @@ export default function RankingPage() {
       <section className="workspace ranking-workspace">
         <div className="ranking-layout">
           <div className="ranking-editor">
-            <h2 className="section-title">Clips (rank 5 → 1)</h2>
+            <h2 className="section-title">Clips (play order #5 → #1)</h2>
             <p className="hint">
-              First slot is rank #5; last is #1. Drag rows to reorder.
+              First slot plays as #5, last as #1. Stack shows #1 on top. Drag
+              rows to reorder.
             </p>
             <ClipSlots
               slots={slots}
               onUpload={onUpload}
+              onBatchUpload={(files) => void onBatchUpload(files)}
               onReorder={onReorder}
+              onCaptionChange={onCaptionChange}
+              onClipVolumeChange={onClipVolumeChange}
               disabled={!ready || busy || processing}
             />
 
             <label className="title-field">
               <span className="section-title">Title</span>
-              <input
-                type="text"
+              <textarea
+                rows={3}
                 value={title}
                 disabled={busy || processing}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Short title"
+                placeholder={"Top 5\nGoals"}
               />
+            </label>
+            <label className="volume-row title-border-row">
+              <span>Title black border</span>
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={1}
+                value={titleBorder}
+                disabled={busy || processing}
+                onChange={(e) => setTitleBorder(Number(e.target.value))}
+              />
+              <span className="time">{titleBorder}px</span>
             </label>
 
             <AudioControls
@@ -245,6 +327,8 @@ export default function RankingPage() {
               onBgmUpload={onBgmUpload}
               bgmVolume={bgmVolume}
               onVolumeChange={setBgmVolume}
+              masterVolume={masterVolume}
+              onMasterVolumeChange={setMasterVolume}
               disabled={!ready || busy || processing}
             />
           </div>
@@ -254,7 +338,11 @@ export default function RankingPage() {
             title={title}
             titlePos={titlePos}
             onTitlePosChange={setTitlePos}
+            titleBorder={titleBorder}
+            ranksPos={ranksPos}
+            onRanksPosChange={setRanksPos}
             muteClips={muteClips}
+            masterVolume={masterVolume}
             stageSizeRef={stageSizeRef}
           />
         </div>

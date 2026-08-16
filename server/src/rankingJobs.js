@@ -39,6 +39,11 @@ function runRankingFfmpeg(job, encoder) {
       hasAudio: job.hasAudio,
       title: job.title,
       titlePos: job.titlePos,
+      titleBorder: job.titleBorder,
+      ranksPos: job.ranksPos,
+      captions: job.captions,
+      clipVolumes: job.clipVolumes,
+      masterVolume: job.masterVolume,
       muteClips: job.muteClips,
       bgmPath: job.bgmPath,
       bgmVolume: job.bgmVolume,
@@ -91,6 +96,11 @@ export function createRankingJob({
   hasAudio,
   title,
   titlePos,
+  titleBorder = 3,
+  ranksPos = { x: 0, y: 0 },
+  captions = ["", "", "", "", ""],
+  clipVolumes = [1, 1, 1, 1, 1],
+  masterVolume = 1,
   muteClips,
   bgmPath,
   bgmVolume,
@@ -113,6 +123,18 @@ export function createRankingJob({
     hasAudio: Array.isArray(hasAudio) ? hasAudio.map(Boolean) : undefined,
     title,
     titlePos,
+    titleBorder: Number(titleBorder) || 0,
+    ranksPos: {
+      x: Number(ranksPos?.x) || 0,
+      y: Number(ranksPos?.y) || 0,
+    },
+    captions: Array.isArray(captions)
+      ? captions.map((c) => String(c ?? "")).slice(0, 5)
+      : ["", "", "", "", ""],
+    clipVolumes: Array.isArray(clipVolumes)
+      ? clipVolumes.map((v) => Number(v) || 0).slice(0, 5)
+      : [1, 1, 1, 1, 1],
+    masterVolume: Number(masterVolume) || 1,
     muteClips: Boolean(muteClips),
     bgmPath: bgmPath ?? null,
     bgmVolume: Number(bgmVolume) || 0.3,

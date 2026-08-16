@@ -286,7 +286,19 @@ app.post("/api/ranking/export", async (request, reply) => {
   }
 
   const body = request.body ?? {};
-  const { clipIds, title, titlePos, muteClips, bgmId, bgmVolume } = body;
+  const {
+    clipIds,
+    title,
+    titlePos,
+    titleBorder,
+    ranksPos,
+    captions,
+    clipVolumes,
+    masterVolume,
+    muteClips,
+    bgmId,
+    bgmVolume,
+  } = body;
 
   if (!Array.isArray(clipIds) || clipIds.length !== 5) {
     return reply.code(400).send({ error: "Exactly 5 clipIds are required" });
@@ -334,6 +346,11 @@ app.post("/api/ranking/export", async (request, reply) => {
     hasAudio: clips.map((c) => Boolean(c.hasAudio)),
     title,
     titlePos,
+    titleBorder: titleBorder ?? 3,
+    ranksPos: ranksPos ?? { x: 0, y: 0 },
+    captions: Array.isArray(captions) ? captions : ["", "", "", "", ""],
+    clipVolumes: Array.isArray(clipVolumes) ? clipVolumes : [1, 1, 1, 1, 1],
+    masterVolume: masterVolume ?? 1,
     muteClips: Boolean(muteClips),
     bgmPath,
     bgmVolume: bgmVolume ?? 0.3,

@@ -7,7 +7,11 @@ type Props = {
   title: string;
   titlePos: { x: number; y: number };
   onTitlePosChange: (pos: { x: number; y: number }) => void;
+  titleBorder: number;
+  ranksPos: { x: number; y: number };
+  onRanksPosChange: (pos: { x: number; y: number }) => void;
   muteClips: boolean;
+  masterVolume: number;
   stageSizeRef: MutableRefObject<{ width: number; height: number }>;
 };
 
@@ -20,13 +24,24 @@ export default function RankingPreview({
   title,
   titlePos,
   onTitlePosChange,
+  titleBorder,
+  ranksPos,
+  onRanksPosChange,
   muteClips,
+  masterVolume,
   stageSizeRef,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [clipIndex, setClipIndex] = useState(0);
+  const draggingRanks = useRef(false);
+  const ranksOrigin = useRef({
+    pointerX: 0,
+    pointerY: 0,
+    startX: 0,
+    startY: 0,
+  });
 
   const urls = useMemo(
     () => slots.map((s) => s?.objectUrl ?? null),
@@ -35,14 +50,18 @@ export default function RankingPreview({
   const urlsKey = urls.map((u) => u ?? "").join("\0");
   const playable = urls.every(Boolean);
   const currentSrc = urls[clipIndex] ?? null;
+  const currentVolume = slots[clipIndex]?.volume ?? 1;
 
+  // Visible ranks sorted top→bottom for display (1 above 5)
   const visibleRanks = useMemo(() => {
     const ranks: number[] = [];
     for (let i = 0; i <= clipIndex; i++) {
       if (urls[i]) ranks.push(rankForIndex(i));
     }
-    return ranks;
+    return ranks.slice().sort((a, b) => a - b);
   }, [clipIndex, urls]);
+
+  const newestRank = playable ? rankForIndex(clipIndex) : null;
 
   useEffect(() => {
     const el = stageRef.current;
@@ -71,10 +90,11 @@ export default function RankingPreview({
     const v = videoRef.current;
     if (!v || !currentSrc) return;
     v.muted = muteClips;
+    v.volume = Math.max(0, Math.min(1, currentVolume * masterVolume));
     if (playing) {
       void v.play().catch(() => setPlaying(false));
     }
-  }, [currentSrc, muteClips, playing]);
+  }, [currentSrc, muteClips, playing, currentVolume, masterVolume]);
 
   function onPlayPause() {
     if (!playable) return;
@@ -101,6 +121,7 @@ export default function RankingPreview({
   return (
     <section className="ranking-preview">
       <h2 className="section-title">Preview (9:16)</h2>
+      <p className="hint">Drag title or rank stack to reposition.</p>
       <div className="ranking-stage-wrap">
         <div ref={stageRef} className="ranking-stage">
           {currentSrc ? (
@@ -117,25 +138,63 @@ export default function RankingPreview({
               Upload all 5 clips to preview
             </div>
           )}
-          <div className="ranking-rank-stack" aria-hidden>
-            {visibleRanks.map((rank, i) => (
-              <span
-                key={rank}
-                className={
-                  "ranking-rank-num" +
-                  (i === visibleRanks.length - 1 && playing
-                    ? " is-entering"
-                    : "")
-                }
-              >
-                {rank}
-              </span>
-            ))}
+          <div
+            className="ranking-rank-stack"
+            style={{ left: ranksPos.x, top: ranksPos.y }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              draggingRanks.current = true;
+              ranksOrigin.current = {
+                pointerX: e.clientX,
+                pointerY: e.clientY,
+                startX: ranksPos.x,
+                startY: ranksPos.y,
+              };
+            }}
+            onPointerMove={(e) => {
+              if (!draggingRanks.current) return;
+              const dx = e.clientX - ranksOrigin.current.pointerX;
+              const dy = e.clientY - ranksOrigin.current.pointerY;
+              onRanksPosChange({
+                x: Math.max(0, ranksOrigin.current.startX + dx),
+                y: Math.max(0, ranksOrigin.current.startY + dy),
+              });
+            }}
+            onPointerUp={(e) => {
+              draggingRanks.current = false;
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }
+            }}
+            onPointerCancel={() => {
+              draggingRanks.current = false;
+            }}
+          >
+            {visibleRanks.map((rank) => {
+              const slotIndex = 5 - rank;
+              const caption = slots[slotIndex]?.caption ?? "";
+              return (
+                <div
+                  key={rank}
+                  className={
+                    "ranking-rank-row" +
+                    (rank === newestRank && playing ? " is-entering" : "")
+                  }
+                >
+                  <span className="ranking-rank-num">{rank}</span>
+                  {caption ? (
+                    <span className="ranking-rank-caption">{caption}</span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
           <TitleOverlay
             title={title}
             pos={titlePos}
             onPosChange={onTitlePosChange}
+            borderWidth={titleBorder}
           />
         </div>
       </div>

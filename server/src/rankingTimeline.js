@@ -18,19 +18,25 @@ export function buildSegments(durations) {
   });
 }
 
+/**
+ * Visual stack: rank 1 at top, rank 5 at bottom.
+ * Playback order stays 5 → 1 (countdown); when 5 appears first it sits at the bottom.
+ */
 export function stackPositions({
   leftPad = 48,
   topPad = 220,
   lineHeight = 140,
   fontSize = 120,
-}) {
+  originX = 0,
+  originY = 0,
+} = {}) {
   /** @type {Record<number, {x:number,y:number,fontSize:number}>} */
   const out = {};
-  for (let rank = 5; rank >= 1; rank--) {
-    const stackIndex = 5 - rank; // 5 -> 0, 1 -> 4
+  for (let rank = 1; rank <= 5; rank++) {
+    const stackIndex = rank - 1; // 1 -> 0 (top), 5 -> 4 (bottom)
     out[rank] = {
-      x: leftPad,
-      y: topPad + stackIndex * lineHeight,
+      x: leftPad + originX,
+      y: topPad + originY + stackIndex * lineHeight,
       fontSize,
     };
   }

@@ -4,16 +4,28 @@ type Props = {
   title: string;
   pos: { x: number; y: number };
   onPosChange: (pos: { x: number; y: number }) => void;
+  borderWidth: number;
 };
 
-export default function TitleOverlay({ title, pos, onPosChange }: Props) {
+export default function TitleOverlay({
+  title,
+  pos,
+  onPosChange,
+  borderWidth,
+}: Props) {
   const dragging = useRef(false);
   const origin = useRef({ pointerX: 0, pointerY: 0, startX: 0, startY: 0 });
+  const bw = Math.max(0, borderWidth);
 
   return (
     <div
       className="ranking-title"
-      style={{ left: pos.x, top: pos.y }}
+      style={{
+        left: pos.x,
+        top: pos.y,
+        WebkitTextStroke: bw > 0 ? `${bw}px black` : undefined,
+        paintOrder: "stroke fill",
+      }}
       onPointerDown={(e) => {
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);

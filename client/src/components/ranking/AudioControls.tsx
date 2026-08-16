@@ -5,6 +5,8 @@ type Props = {
   onBgmUpload: (file: File) => void;
   bgmVolume: number;
   onVolumeChange: (volume: number) => void;
+  masterVolume: number;
+  onMasterVolumeChange: (volume: number) => void;
   disabled?: boolean;
 };
 
@@ -15,6 +17,8 @@ export default function AudioControls({
   onBgmUpload,
   bgmVolume,
   onVolumeChange,
+  masterVolume,
+  onMasterVolumeChange,
   disabled = false,
 }: Props) {
   const needsBgm = muteClips && !bgmFilename;
@@ -63,6 +67,20 @@ export default function AudioControls({
           onChange={(e) => onVolumeChange(Number(e.target.value))}
         />
         <span className="time">{bgmVolume.toFixed(2)}</span>
+      </label>
+
+      <label className="volume-row">
+        <span>Master volume</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={masterVolume}
+          disabled={disabled}
+          onChange={(e) => onMasterVolumeChange(Number(e.target.value))}
+        />
+        <span className="time">{masterVolume.toFixed(2)}</span>
       </label>
 
       {needsBgm && (

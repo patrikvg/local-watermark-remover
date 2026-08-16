@@ -62,7 +62,7 @@ describe("buildRankingArgs", () => {
     expect(fc).toContain("concat=n=5");
     expect(fc).toContain("anullsrc=");
     expect(fc).toContain("apad");
-    expect(fc).toMatch(/\[0:a\]apad/);
+    expect(fc).toMatch(/\[0:a\]volume=1,apad/);
     expect(fc).toMatch(/anullsrc=channel_layout=stereo:sample_rate=44100,atrim=0:2/);
   });
 
@@ -80,5 +80,29 @@ describe("buildRankingArgs", () => {
     });
     const fc = args[args.indexOf("-filter_complex") + 1];
     expect(fc).toContain("amix=inputs=2:duration=first:dropout_transition=0:normalize=0");
+  });
+
+  it("includes captions and master volume when provided", () => {
+    const args = buildRankingArgs({
+      clips: ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mp4"],
+      durations: [1, 1, 1, 1, 1],
+      title: "Top\nFive",
+      titlePos: { x: 10, y: 10 },
+      titleBorder: 5,
+      ranksPos: { x: 20, y: 30 },
+      captions: ["A", "", "C", "", "E"],
+      clipVolumes: [0.5, 1, 1, 1, 1],
+      masterVolume: 0.8,
+      muteClips: false,
+      bgmPath: null,
+      bgmVolume: 0.2,
+      encoder: "libx264",
+      output: "out.mp4",
+    });
+    const fc = args[args.indexOf("-filter_complex") + 1];
+    expect(fc).toContain("text='A'");
+    expect(fc).toContain("borderw=5");
+    expect(fc).toContain("volume=0.8");
+    expect(fc).toMatch(/\[0:a\]volume=0\.5/);
   });
 });
