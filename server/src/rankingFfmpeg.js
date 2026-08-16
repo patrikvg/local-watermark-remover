@@ -14,7 +14,8 @@ export function escapeDrawtext(text) {
 
 function fontfileOption() {
   if (process.platform === "win32") {
-    return "fontfile=C\\:/Windows/Fonts/arialbd.ttf:";
+    // Quoted path so drive-letter ":" survives filter parsing under spawn().
+    return "fontfile='C\\:/Windows/Fonts/arialbd.ttf':";
   }
   return "";
 }
