@@ -6,6 +6,7 @@ Local web app: upload a video, draw a box over a watermark, process with FFmpeg 
 
 - Node.js 20+
 - [FFmpeg](https://ffmpeg.org/) and `ffprobe` on your PATH (already works if `ffmpeg -version` succeeds)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) on your PATH (`yt-dlp --version`)
 
 ## Setup
 
@@ -35,6 +36,13 @@ Build a vertical Top-5 Short from five clips:
 4. Export at **9:16** / **1080×1920**.
 
 The **Watermark** tab remains a separate flow for box-based watermark removal.
+
+## Download
+
+1. Open the **Download** tab.
+2. Paste a YouTube or TikTok URL → **Prüfen** to see the best available resolution.
+3. **Herunterladen** (optional: **Danach Watermark entfernen**).
+4. Save the file, or continue in Watermark and draw the box as usual.
 
 ## Tests
 
