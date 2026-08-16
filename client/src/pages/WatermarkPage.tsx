@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { getHealth, type Health } from "../api";
 import VideoWorkspace from "../components/VideoWorkspace";
 
-export default function WatermarkPage() {
+type Props = {
+  initialUploadId?: string | null;
+};
+
+export default function WatermarkPage(_props: Props) {
   const [health, setHealth] = useState<Health | null>(null);
   const [error, setError] = useState<string | null>(null);
 
