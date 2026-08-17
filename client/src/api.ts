@@ -6,6 +6,11 @@ export type Health = {
   ffprobe: boolean;
   ytdlp?: boolean;
   encoder: string;
+  inpaint?: {
+    ok: boolean;
+    device: "cuda" | "cpu" | null;
+    error?: string | null;
+  };
 };
 
 export type DownloadProbe = {

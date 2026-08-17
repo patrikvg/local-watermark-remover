@@ -39,9 +39,24 @@ export default function WatermarkPage({ initialUploadId }: Props) {
           FFmpeg/ffprobe not found on PATH.
         </div>
       )}
-      {health?.ok && <div className="banner ok">Local engine ready.</div>}
+      {health?.ok && health.inpaint?.ok && health.inpaint.device === "cuda" && (
+        <div className="banner ok">KI bereit · CUDA</div>
+      )}
+      {health?.ok && health.inpaint?.ok && health.inpaint.device === "cpu" && (
+        <div className="banner ok">KI bereit · CPU (langsam)</div>
+      )}
+      {health?.ok && !health.inpaint?.ok && (
+        <div className="banner danger">
+          {health.inpaint?.error ||
+            "Inpaint engine not ready. In server/inpaint create a venv, install CUDA torch, pip install -r requirements.txt, then python worker.py --check."}
+        </div>
+      )}
       {health?.ok && (
-        <VideoWorkspace ready={ready} initialUploadId={initialUploadId} />
+        <VideoWorkspace
+          ready={ready}
+          inpaintReady={Boolean(health?.inpaint?.ok)}
+          initialUploadId={initialUploadId}
+        />
       )}
     </>
   );

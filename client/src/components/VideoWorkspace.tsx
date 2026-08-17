@@ -49,10 +49,15 @@ function scaleBoxToVideo(
 
 type Props = {
   ready: boolean;
+  inpaintReady: boolean;
   initialUploadId?: string | null;
 };
 
-export default function VideoWorkspace({ ready, initialUploadId }: Props) {
+export default function VideoWorkspace({
+  ready,
+  inpaintReady,
+  initialUploadId,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadResult | null>(null);
@@ -340,6 +345,7 @@ export default function VideoWorkspace({ ready, initialUploadId }: Props) {
           className="primary"
           disabled={
             !ready ||
+            !inpaintReady ||
             !upload ||
             !box ||
             busy ||
