@@ -1,12 +1,30 @@
 # Watermark Remover
 
-Local web app: upload a video, draw a box over a watermark, process with FFmpeg on your machine, download the result. Nothing is uploaded to the internet.
+Local web app: upload a video, draw a box over a watermark, and process on your machine — the Watermark tab uses local LaMa inpainting plus FFmpeg. Download the result; nothing is uploaded to the internet.
 
 ## Requirements
 
 - Node.js 20+
 - [FFmpeg](https://ffmpeg.org/) and `ffprobe` on your PATH (already works if `ffmpeg -version` succeeds)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) on your PATH (`yt-dlp --version`)
+- Python 3.10+ (3.11 or 3.12 recommended for the LaMa worker)
+
+## Inpaint engine (Watermark tab)
+
+delogo is no longer used. The Watermark tab needs a local LaMa worker:
+
+```powershell
+cd server/inpaint
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+pip install -r requirements.txt
+python worker.py --check
+```
+
+`--check` should print `"device": "cuda"` on the RTX 5070 Ti. If it says `cpu`, the CUDA torch wheel did not install — fix that before processing long clips.
+
+Restart `npm run dev` after a successful check. The first **Remove watermark** run downloads `big-lama.pt` into `server/inpaint/models/` (~200 MB, once).
 
 ## Setup
 
