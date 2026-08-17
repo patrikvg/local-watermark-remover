@@ -37,8 +37,15 @@ def ensure_model() -> Path:
     if not MODEL_PATH.is_file():
         import urllib.request
 
+        tmp = MODEL_PATH.with_suffix(".pt.tmp")
         print("downloading LaMa model", file=sys.stderr, flush=True)
-        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+        try:
+            urllib.request.urlretrieve(MODEL_URL, tmp)
+            tmp.replace(MODEL_PATH)
+        except Exception:
+            if tmp.is_file():
+                tmp.unlink()
+            raise
     os.environ["LAMA_MODEL"] = str(MODEL_PATH)
     return MODEL_PATH
 
