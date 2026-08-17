@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   cancelDownloadJob,
   downloadFileUrl,
@@ -10,10 +10,16 @@ import {
   type DownloadProbe,
   type Health,
 } from "../api";
+import { triggerBrowserDownload } from "../browserDownload";
+import { isSupportedDownloadUrl } from "../downloadUrl";
 
 type Props = {
   onOpenWatermark: (uploadId: string) => void;
 };
+
+function isAbortError(err: unknown) {
+  return err instanceof DOMException && err.name === "AbortError";
+}
 
 export default function DownloadPage({ onOpenWatermark }: Props) {
   const [health, setHealth] = useState<Health | null>(null);
@@ -27,12 +33,14 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   const [checking, setChecking] = useState(false);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const downloadedIds = useRef(new Set<string>());
+  const openedWatermarkIds = useRef(new Set<string>());
 
   const processing = job?.status === "queued" || job?.status === "running";
-  const busy = checking || starting || processing;
-  const hasCurrentProbe = Boolean(
-    probe && probedUrl && url.trim() === probedUrl
-  );
+  const busy = starting || processing;
+  const trimmedUrl = url.trim();
+  const urlReady = isSupportedDownloadUrl(trimmedUrl);
+  const hasCurrentProbe = Boolean(probe && probedUrl && trimmedUrl === probedUrl);
   const percent = useMemo(
     () => Math.round((job?.progress ?? 0) * 100),
     [job?.progress]
@@ -47,6 +55,40 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!health?.ytdlp || processing || !urlReady) {
+      if (!urlReady) {
+        setProbe(null);
+        setProbedUrl(null);
+        setChecking(false);
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setChecking(true);
+      try {
+        const result = await probeDownload(trimmedUrl, controller.signal);
+        setProbe(result);
+        setProbedUrl(trimmedUrl);
+        setMessage(null);
+      } catch (err) {
+        if (isAbortError(err) || controller.signal.aborted) return;
+        setProbe(null);
+        setProbedUrl(null);
+        setMessage(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!controller.signal.aborted) setChecking(false);
+      }
+    }, 400);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [health?.ytdlp, processing, trimmedUrl, urlReady]);
+
+  useEffect(() => {
     if (!jobId || !processing) return;
     const timer = setInterval(async () => {
       try {
@@ -54,7 +96,16 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
         setJob(next);
         if (next.status === "done") {
           setMessage("Download abgeschlossen.");
-          if (removeWatermark && next.uploadId) {
+          if (!downloadedIds.current.has(jobId)) {
+            downloadedIds.current.add(jobId);
+            triggerBrowserDownload(downloadFileUrl(jobId));
+          }
+          if (
+            removeWatermark &&
+            next.uploadId &&
+            !openedWatermarkIds.current.has(jobId)
+          ) {
+            openedWatermarkIds.current.add(jobId);
             onOpenWatermark(next.uploadId);
           }
         } else if (next.status === "error") {
@@ -69,34 +120,14 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
     return () => clearInterval(timer);
   }, [jobId, onOpenWatermark, processing, removeWatermark]);
 
-  async function onProbe() {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    setChecking(true);
-    setProbe(null);
-    setProbedUrl(null);
-    setJob(null);
-    setJobId(null);
-    setMessage(null);
-    try {
-      const result = await probeDownload(trimmed);
-      setProbe(result);
-      setProbedUrl(trimmed);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : String(err));
-    } finally {
-      setChecking(false);
-    }
-  }
-
   async function onDownload() {
-    if (!probe || !probedUrl || url.trim() !== probedUrl) return;
+    if (!urlReady || busy) return;
     setStarting(true);
     setJob(null);
     setJobId(null);
     setMessage("Download wird gestartet…");
     try {
-      const { jobId: id } = await startDownload(probedUrl, { tiktokFormat });
+      const { jobId: id } = await startDownload(trimmedUrl, { tiktokFormat });
       setJobId(id);
       setJob({
         id,
@@ -105,7 +136,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
         error: null,
         outputName: null,
         uploadId: null,
-        title: probe.title,
+        title: hasCurrentProbe ? probe?.title ?? null : null,
         tiktokFormat,
         phase: null,
       });
@@ -132,7 +163,8 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
       <header className="hero">
         <h1>Video herunterladen</h1>
         <p className="subtitle">
-          YouTube- oder TikTok-URL prüfen und in bester Qualität herunterladen.
+          YouTube- oder TikTok-URL einfügen — wird live geprüft und direkt
+          heruntergeladen.
         </p>
       </header>
 
@@ -163,24 +195,23 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
               setUrl(event.target.value);
               setProbe(null);
               setProbedUrl(null);
+              if (!processing) {
+                setJob(null);
+                setJobId(null);
+                setMessage(null);
+              }
             }}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && health?.ytdlp && !checking) {
-                void onProbe();
+              if (event.key === "Enter" && health?.ytdlp && urlReady && !busy) {
+                void onDownload();
               }
             }}
           />
         </label>
 
-        <div className="actions">
-          <button
-            type="button"
-            disabled={!health?.ytdlp || !url.trim() || checking || processing}
-            onClick={() => void onProbe()}
-          >
-            {checking ? "Prüfe…" : "Prüfen"}
-          </button>
-        </div>
+        {checking && urlReady && !hasCurrentProbe && (
+          <p className="message">Prüfe Video…</p>
+        )}
 
         {probe && hasCurrentProbe && (
           <div className="banner">
@@ -216,13 +247,7 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
           <button
             type="button"
             className="primary"
-            disabled={
-              !health?.ytdlp ||
-              !hasCurrentProbe ||
-              checking ||
-              starting ||
-              processing
-            }
+            disabled={!health?.ytdlp || !urlReady || busy}
             onClick={() => void onDownload()}
           >
             {starting ? "Starte…" : "Herunterladen"}
@@ -235,12 +260,8 @@ export default function DownloadPage({ onOpenWatermark }: Props) {
             Abbrechen
           </button>
           {job?.status === "done" && jobId && (
-            <a
-              className="primary link-btn"
-              href={downloadFileUrl(jobId)}
-              download
-            >
-              Datei speichern
+            <a className="link-btn" href={downloadFileUrl(jobId)} download>
+              Erneut speichern
             </a>
           )}
           {job?.uploadId && (

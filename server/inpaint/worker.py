@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from geom import fit_long_side, pad_to_multiple
+from geom import pad_to_multiple
 
 MODEL_URL = "https://github.com/enesmsahin/simple-lama-inpainting/releases/download/v0.1.0/big-lama.pt"
 HERE = Path(__file__).resolve().parent
@@ -61,17 +61,15 @@ def prepare(image, mask):
     from PIL import Image
 
     w, h = image.size
-    nw, nh = fit_long_side(w, h, 720)
-    pw, ph = pad_to_multiple(nw), pad_to_multiple(nh)
-    img = image.resize((nw, nh), Image.Resampling.LANCZOS) if (nw, nh) != (w, h) else image
-    msk = mask.resize((nw, nh), Image.Resampling.NEAREST) if (nw, nh) != (w, h) else mask
-    if (pw, ph) != (nw, nh):
+    pw, ph = pad_to_multiple(w), pad_to_multiple(h)
+    img, msk = image, mask
+    if (pw, ph) != (w, h):
         padded = Image.new("RGB", (pw, ph))
         padded.paste(img, (0, 0))
         mp = Image.new("L", (pw, ph), 0)
         mp.paste(msk, (0, 0))
         img, msk = padded, mp
-    return img, msk, (w, h), (nw, nh)
+    return img, msk, (w, h), (w, h)
 
 
 def crop_result(result, orig_size, resized):

@@ -13,15 +13,16 @@ function evenAtLeast(n, min) {
 }
 
 /**
- * Crop = user box expanded by `expand` (default 24), clamped inside a 1px
- * frame margin. Mask is the user box in crop coordinates. Feather on each
- * side is min(12, pad between mask and crop edge) so we never fade the hole.
+ * Crop = user box expanded by `expand` (default 80), clamped inside a 1px
+ * frame margin. Mask is the user box dilated by `maskDilate` in crop
+ * coordinates so watermark edges are covered. Feather on each side is
+ * min(32, pad between mask and crop edge) so we never fade the hole.
  */
 export function fitInpaintRegion(
   box,
   videoWidth,
   videoHeight,
-  { expand = 24, feather = 12 } = {}
+  { expand = 80, feather = 32, maskDilate = 12 } = {}
 ) {
   const user = normalizeBox(box, videoWidth, videoHeight);
   const vw = Math.floor(videoWidth);
@@ -67,6 +68,22 @@ export function fitInpaintRegion(
   my = Math.max(0, even(my));
   if (mx + mw > w) mw = even(Math.max(2, w - mx));
   if (my + mh > h) mh = even(Math.max(2, h - my));
+
+  const dilate = Math.max(0, even(Math.round(maskDilate)));
+  if (dilate > 0) {
+    const xGrow = Math.min(dilate, mx);
+    const yGrow = Math.min(dilate, my);
+    mx -= xGrow;
+    my -= yGrow;
+    mw = Math.min(w - mx, mw + xGrow + dilate);
+    mh = Math.min(h - my, mh + yGrow + dilate);
+    mw = Math.max(2, even(mw));
+    mh = Math.max(2, even(mh));
+    mx = Math.max(0, even(mx));
+    my = Math.max(0, even(my));
+    if (mx + mw > w) mw = even(Math.max(2, w - mx));
+    if (my + mh > h) mh = even(Math.max(2, h - my));
+  }
 
   const cap = Math.max(0, Math.round(feather));
   const featherBox = {

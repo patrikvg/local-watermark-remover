@@ -2,15 +2,15 @@ import { describe, it, expect } from "vitest";
 import { fitInpaintRegion } from "../src/inpaintRegion.js";
 
 describe("fitInpaintRegion", () => {
-  it("expands a centered box by 24px and keeps the mask on the user box", () => {
+  it("expands a centered box by 80px, dilates the mask, and feathers 32px", () => {
     const r = fitInpaintRegion(
       { x: 200, y: 100, width: 80, height: 40 },
       1920,
       1080
     );
-    expect(r.crop).toEqual({ x: 176, y: 76, w: 128, h: 88 });
-    expect(r.mask).toEqual({ x: 24, y: 24, w: 80, h: 40 });
-    expect(r.feather).toEqual({ left: 12, right: 12, top: 12, bottom: 12 });
+    expect(r.crop).toEqual({ x: 120, y: 20, w: 240, h: 200 });
+    expect(r.mask).toEqual({ x: 68, y: 68, w: 104, h: 64 });
+    expect(r.feather).toEqual({ left: 32, right: 32, top: 32, bottom: 32 });
   });
 
   it("clamps crop to the frame and shrinks feather on the clamped side", () => {

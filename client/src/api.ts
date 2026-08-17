@@ -104,11 +104,15 @@ export function downloadUrl(jobId: string): string {
   return `/api/jobs/${jobId}/download`;
 }
 
-export async function probeDownload(url: string): Promise<DownloadProbe> {
+export async function probeDownload(
+  url: string,
+  signal?: AbortSignal
+): Promise<DownloadProbe> {
   const res = await fetch("/api/download/probe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
+    signal,
   });
   if (!res.ok) throw new Error(await readError(res));
   return res.json();
@@ -158,7 +162,10 @@ export type TiktokJobStatus = {
   filename: string | null;
 };
 
-export async function uploadTiktokConvert(file: File): Promise<{
+export async function uploadTiktokConvert(
+  file: File,
+  signal?: AbortSignal
+): Promise<{
   jobId: string;
   width: number;
   height: number;
@@ -167,7 +174,7 @@ export async function uploadTiktokConvert(file: File): Promise<{
 }> {
   const body = new FormData();
   body.append("file", file);
-  const res = await fetch("/api/tiktok/upload", { method: "POST", body });
+  const res = await fetch("/api/tiktok/upload", { method: "POST", body, signal });
   if (!res.ok) throw new Error(await readError(res));
   return res.json();
 }
