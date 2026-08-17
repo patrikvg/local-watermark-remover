@@ -50,6 +50,10 @@ function rmWorkDir(job) {
   }
 }
 
+function throwIfCancelled(job) {
+  if (job.status === "cancelled") throw new Error("cancelled");
+}
+
 function spawnTracked(job, cmd, args) {
   const proc = spawn(cmd, args, { windowsHide: true });
   job.proc = proc;
@@ -311,12 +315,14 @@ export function createAndStartJob({
   });
 
   (async () => {
+    if (job.status === "cancelled") return;
     job.status = "running";
     try {
       fs.mkdirSync(path.join(workDir, "crop"), { recursive: true });
       fs.mkdirSync(path.join(workDir, "fill"), { recursive: true });
       const fps = await probeFps(inputPath);
       job.fps = fps;
+      throwIfCancelled(job);
 
       await runFfmpegPhase(
         job,
@@ -327,6 +333,7 @@ export function createAndStartJob({
         }),
         "crop"
       );
+      throwIfCancelled(job);
       await runFfmpegPhase(
         job,
         buildCropExtractArgs({
@@ -336,7 +343,9 @@ export function createAndStartJob({
         }),
         "crop"
       );
+      throwIfCancelled(job);
       await runWorkerPhase(job);
+      throwIfCancelled(job);
 
       const overlayOnce = (encoder) =>
         runFfmpegPhase(
@@ -354,6 +363,7 @@ export function createAndStartJob({
         );
 
       try {
+        throwIfCancelled(job);
         await overlayOnce(preferredEncoder);
         job.encoder = preferredEncoder;
       } catch (err) {
