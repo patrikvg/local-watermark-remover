@@ -10,3 +10,6 @@ server/tiktok/
 .superpowers/
 *.tsbuildinfo
 tmp-export-frames/
+server/inpaint/.venv/
+server/inpaint/models/
+server/inpaint/__pycache__/

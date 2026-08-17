@@ -1,0 +1,1 @@
+simple-lama-inpainting==0.1.2
