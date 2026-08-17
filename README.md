@@ -18,9 +18,12 @@ cd server/inpaint
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+pip install --no-deps simple-lama-inpainting==0.1.2
 pip install -r requirements.txt
 python worker.py --check
 ```
+
+`--no-deps` is required: the 0.1.2 package pins Pillow 9 / NumPy 1, which do not build on Python 3.13. Torch already provides current Pillow and NumPy.
 
 `--check` should print `"device": "cuda"` on the RTX 5070 Ti. If it says `cpu`, the CUDA torch wheel did not install — fix that before processing long clips.
 
