@@ -63,7 +63,7 @@ export function overlayAlphaExpr(feather) {
   const ft = Math.max(0, Number(feather.top) || 0);
   const fb = Math.max(0, Number(feather.bottom) || 0);
   const side = (dist, width) =>
-    width <= 0 ? "255" : `min(255,${dist}*255/${width})`;
+    width <= 0 ? "255" : `min(255,(${dist})*255/${width})`;
   return `min(${side("X", fl)},min(${side("W-1-X", fr)},min(${side("Y", ft)},${side("H-1-Y", fb)})))`;
 }
 
@@ -115,7 +115,7 @@ export function buildOverlayArgs({
   encoder,
 }) {
   const alpha = overlayAlphaExpr(feather);
-  const filter = `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alpha}'[ov];[0:v][ov]overlay=${crop.x}:${crop.y}:format=auto`;
+  const filter = `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alpha}'[ov];[0:v][ov]overlay=${crop.x}:${crop.y}:format=auto[vout]`;
   const args = [
     "-y",
     "-i",
@@ -126,6 +126,10 @@ export function buildOverlayArgs({
     fillPattern,
     "-filter_complex",
     filter,
+    "-map",
+    "[vout]",
+    "-map",
+    "0:a?",
   ];
   args.push(...encodeVideoArgs(encoder));
   args.push("-c:a", "aac", "-b:a", "192k", output);

@@ -95,6 +95,9 @@ describe("buildOverlayArgs", () => {
     expect(args.join(" ")).toMatch(/overlay=176:76/);
     expect(args).toContain("-framerate");
     expect(args).toContain("30");
+    expect(args).toContain("-map");
+    expect(args).toContain("[vout]");
+    expect(args).toContain("0:a?");
   });
 
   it("falls back to libx264", () => {
@@ -116,5 +119,7 @@ describe("overlayAlphaExpr", () => {
     const expr = overlayAlphaExpr({ left: 0, right: 12, top: 0, bottom: 8 });
     expect(expr).toMatch(/eq\(0,0\)|FL|255/);
     expect(expr).not.toMatch(/\/0/);
+    expect(expr).toMatch(/\(W-1-X\)\*255\/12/);
+    expect(expr).toMatch(/\(H-1-Y\)\*255\/8/);
   });
 });
