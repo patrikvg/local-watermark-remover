@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import { fitDelogoRegion } from "./box.js";
+import { fitInpaintRegion } from "./inpaintRegion.js";
+import { checkInpaint } from "./inpaint.js";
 import { safeDownloadFilename } from "./downloadFilename.js";
 import { parseDownloadUrl } from "./downloadUrl.js";
 import {
@@ -64,6 +65,7 @@ const rankingBgm = new Map();
 
 let cachedEncoder = "libx264";
 let binaries = { ffmpeg: false, ffprobe: false, ytdlp: false };
+let cachedInpaint = { ok: false, device: null, error: null, python: null };
 
 async function refreshEnv() {
   const ff = await checkBinaries();
@@ -72,6 +74,7 @@ async function refreshEnv() {
   if (binaries.ffmpeg) {
     cachedEncoder = await pickEncoder();
   }
+  cachedInpaint = await checkInpaint();
 }
 
 async function registerDownloadedUpload({ path: filePath, filename, title }) {
@@ -104,6 +107,11 @@ app.get("/api/health", async () => ({
   ffprobe: binaries.ffprobe,
   ytdlp: Boolean(binaries.ytdlp),
   encoder: cachedEncoder,
+  inpaint: {
+    ok: Boolean(cachedInpaint.ok),
+    device: cachedInpaint.device,
+    error: cachedInpaint.ok ? null : cachedInpaint.error,
+  },
 }));
 
 app.post("/api/upload", async (request, reply) => {
@@ -165,10 +173,13 @@ app.post("/api/process", async (request, reply) => {
   if (!box) {
     return reply.code(400).send({ error: "box is required" });
   }
+  if (!cachedInpaint.ok) {
+    return reply.code(503).send({ error: cachedInpaint.error });
+  }
 
-  let delogo;
+  let region;
   try {
-    delogo = fitDelogoRegion(box, upload.width, upload.height, 8);
+    region = fitInpaintRegion(box, upload.width, upload.height);
   } catch (err) {
     return reply.code(400).send({
       error: err instanceof Error ? err.message : "Invalid box",
@@ -180,19 +191,20 @@ app.post("/api/process", async (request, reply) => {
       uploadId,
       video: { w: upload.width, h: upload.height },
       box,
-      delogo,
+      region,
     },
-    "starting delogo job"
+    "starting inpaint job"
   );
 
   const job = createAndStartJob({
     inputPath: upload.path,
-    delogo,
+    region,
     duration: upload.duration,
     preferredEncoder: cachedEncoder,
+    python: cachedInpaint.python,
   });
 
-  return { jobId: job.id, delogo };
+  return { jobId: job.id, region };
 });
 
 app.get("/api/jobs/:id", async (request, reply) => {
